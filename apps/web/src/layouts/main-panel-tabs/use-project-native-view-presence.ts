@@ -67,7 +67,15 @@ export function useProjectNativeViewPresence(
       hosting: hostingEnabled && ownsSite && controlPlaneViews.hosting,
       e2e: hostingEnabled && ownsSite && controlPlaneViews.e2e,
       analytics: hostingEnabled && ownsSite && controlPlaneViews.analytics,
-      cdn: monitorEnabled && ownsAnalyticsSite && controlPlaneViews.monitor,
+      // A v8 site's Monitor reads the telemetry of its own site (the one its
+      // token names); a v7 site's reads the analytics site. "error" is a site
+      // last found v8, which the tab opens as v8 too (`monitorKind`).
+      cdn:
+        monitorEnabled &&
+        (mainSchema === "v8" || mainSchema === "error"
+          ? ownsSite
+          : ownsAnalyticsSite) &&
+        controlPlaneViews.monitor,
       experiments: controlPlaneViews.experiments,
     },
     assetsPending: !!siteSlug && fileConfigs.isPending,

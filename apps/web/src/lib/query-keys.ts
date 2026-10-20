@@ -768,6 +768,8 @@ export const KEYS = {
   // so each panel caches independently and refetches on range change.
   cdnData: (base: string, view: string, range: string) =>
     ["monitor", base, "cdn-data", view, range] as const,
+  siteMonitorData: (base: string, view: string, range: string) =>
+    ["monitor", base, "site-data", view, range] as const,
   // Order monitor: every key starts with this prefix, so one invalidation
   // (the `order-monitor.store.evaluated` SSE event) refreshes them all.
   orderMonitor: (org: string) => ["order-monitor", org] as const,

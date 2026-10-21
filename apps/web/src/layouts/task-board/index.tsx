@@ -119,6 +119,7 @@ import {
   isTaskHandedToHuman,
   HIDDEN_STATUSES,
   boardGridColumns,
+  isLaneShown,
   laneVisibility,
   PRIORITIES,
   PRIORITY_CONFIG,
@@ -179,6 +180,7 @@ import {
 import {
   AppliedFiltersBar,
   BoardSettingsButton,
+  ColumnsButton,
   GroupByButton,
   SortByButton,
   TaskFilterButton,
@@ -1158,6 +1160,7 @@ function TaskBoardBody({
           : null,
       );
   const [preferences] = usePreferences();
+  const columnVisibility = useLaneVisibility();
   const [selection, setSelection] = useState<Set<string>>(new Set());
   const toggleSelect = (id: string) =>
     setSelection((prev) => {
@@ -1335,7 +1338,7 @@ function TaskBoardBody({
     : visibleItems.filter(
         (item) =>
           !HIDDEN_STATUSES.includes(item.status) ||
-          preferences.shownTaskBoardLanes.includes(item.status),
+          isLaneShown(item.status, preferences.taskBoardLaneVisibility),
       );
   // Sorted before grouping, so every group reads in the chosen order too.
   const visibleListItems =
@@ -1521,11 +1524,17 @@ function TaskBoardBody({
                         scoped={scopeId !== null}
                         onChange={handleFiltersChange}
                       />
-                      {layout === "list" && (
+                      {layout === "list" ? (
                         <>
                           <GroupByButton {...grouping} />
                           <SortByButton {...sorting} />
                         </>
+                      ) : (
+                        <ColumnsButton
+                          all={CANONICAL_COLUMN_KEYS}
+                          hidden={columnVisibility.hidden}
+                          onToggle={columnVisibility.setLaneShown}
+                        />
                       )}
                     </div>
                   </>
@@ -2215,6 +2224,22 @@ function bySortOrder(a: TaskBoardItem, b: TaskBoardItem) {
   return a.sortOrder - b.sortOrder;
 }
 
+/** Lane visibility persists per person, so the choice survives a reload. The
+ *  toolbar menu and the board read the same preference. */
+function useLaneVisibility() {
+  const [preferences, setPreferences] = usePreferences();
+  const { lanes, hidden } = laneVisibility(preferences.taskBoardLaneVisibility);
+  const setLaneShown = (status: string, shown: boolean) =>
+    setPreferences((prev) => ({
+      ...prev,
+      taskBoardLaneVisibility: {
+        ...prev.taskBoardLaneVisibility,
+        [status]: shown,
+      },
+    }));
+  return { lanes, hidden, setLaneShown };
+}
+
 function Lanes({
   items,
   members,
@@ -2347,22 +2372,11 @@ function Lanes({
   const laneItems = (status: string) =>
     placed.filter((item) => item.status === status).sort(bySortOrder);
 
-  /** Shown-again lanes persist per person, so pulling one onto the board
-   *  survives a reload. */
   const {
     lanes: boardLanes,
     hidden: hiddenLanes,
-    hideable: hideableLanes,
-  } = laneVisibility({
-    shownLanes: preferences.shownTaskBoardLanes,
-  });
-  const setLaneShown = (status: string, shown: boolean) =>
-    setPreferences((prev) => ({
-      ...prev,
-      shownTaskBoardLanes: shown
-        ? [...prev.shownTaskBoardLanes, status]
-        : prev.shownTaskBoardLanes.filter((s) => s !== status),
-    }));
+    setLaneShown,
+  } = useLaneVisibility();
   const collapsedLanes = preferences.collapsedTaskBoardLanes;
   const toggleLaneCollapsed = (status: string) =>
     setPreferences((prev) => ({
@@ -2559,7 +2573,7 @@ function Lanes({
               onTypeChange={onTypeChange}
               onDueDateChange={onDueDateChange}
               onHide={
-                hideableLanes.includes(status)
+                boardLanes.length > 1
                   ? () => setLaneShown(status, false)
                   : undefined
               }

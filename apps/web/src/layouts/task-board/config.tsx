@@ -359,29 +359,27 @@ export const TASK_TYPE_CONFIG: Record<
   },
 };
 
-/**
- * Which lanes the board draws as columns, and which collapse into the "Hidden
- * columns" drawer. A lane hides when it's hidden by default (`HIDDEN_STATUSES`)
- * unless `shownLanes` brings it back.
- */
-export function laneVisibility({
-  shownLanes,
-}: {
-  /** `string[]`: it comes out of localStorage, which can hold a dead lane. */
-  shownLanes: readonly string[];
-}): {
+/** Whether a lane is drawn as a column: this person's override, else the
+ *  default (`HIDDEN_STATUSES`). */
+export function isLaneShown(
+  status: string,
+  /** Comes out of localStorage, so it can hold a dead lane. */
+  overrides: Readonly<Record<string, boolean>>,
+): boolean {
+  return (
+    overrides[status] ??
+    !(HIDDEN_STATUSES as readonly string[]).includes(status)
+  );
+}
+
+/** Lanes drawn as columns vs. the "Hidden columns" drawer. */
+export function laneVisibility(overrides: Readonly<Record<string, boolean>>): {
   lanes: CanonicalColumnKey[];
   hidden: CanonicalColumnKey[];
-  hideable: CanonicalColumnKey[];
 } {
-  const hideable = CANONICAL_COLUMN_KEYS.filter((s) =>
-    HIDDEN_STATUSES.includes(s),
-  );
-  const hidden = hideable.filter((s) => !shownLanes.includes(s));
   return {
-    lanes: CANONICAL_COLUMN_KEYS.filter((s) => !hidden.includes(s)),
-    hidden,
-    hideable,
+    lanes: CANONICAL_COLUMN_KEYS.filter((s) => isLaneShown(s, overrides)),
+    hidden: CANONICAL_COLUMN_KEYS.filter((s) => !isLaneShown(s, overrides)),
   };
 }
 

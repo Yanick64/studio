@@ -10,6 +10,12 @@ import {
   agentRunState,
   boardCollisions,
   cardNeedsAttention,
+  isCriticalTask,
+  dropSwimlane,
+  hasCriticalWell,
+  swimlanePriority,
+  CRITICAL_DROPPABLE_PREFIX,
+  LANE_DROPPABLE_PREFIX,
   boardGridColumns,
   dropLane,
   dueDateUrgency,
@@ -28,6 +34,8 @@ import type { TaskBoardItem } from "./config";
 function item(id: string, sortOrder: number): TaskBoardItem {
   return {
     harnessId: "claude-code",
+    parentId: null,
+    isEpic: false,
     id,
     organizationId: "org-1",
     title: id,
@@ -526,5 +534,142 @@ describe("boardGridColumns", () => {
         hasHiddenTail: false,
       }),
     ).toBe("minmax(280px, 1fr)");
+  });
+});
+
+describe("isCriticalTask", () => {
+  const at = (patch: Partial<TaskBoardItem>) => ({ ...item("t", 0), ...patch });
+
+  test("urgent, high, security, blocked and failed work is critical", () => {
+    expect(isCriticalTask(at({ priority: "urgent" }))).toBe(true);
+    expect(isCriticalTask(at({ priority: "high" }))).toBe(true);
+    expect(isCriticalTask(at({ type: "security" }))).toBe(true);
+    expect(
+      isCriticalTask(
+        at({
+          threads: [{ status: "requires_action" }] as TaskBoardItem["threads"],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  test("ordinary work is an improvement", () => {
+    expect(isCriticalTask(at({ priority: "medium" }))).toBe(false);
+    expect(isCriticalTask(at({ priority: "none", type: "feature" }))).toBe(
+      false,
+    );
+  });
+
+  test("settled cards never count, however urgent", () => {
+    expect(isCriticalTask(at({ priority: "urgent", status: "done" }))).toBe(
+      false,
+    );
+    expect(isCriticalTask(at({ type: "security", status: "archived" }))).toBe(
+      false,
+    );
+  });
+});
+
+describe("dropSwimlane", () => {
+  const cards = new Map([
+    ["urgent", { ...item("urgent", 0), priority: "urgent" as const }],
+    ["plain", item("plain", 1)],
+  ]);
+  const over = (
+    overId: string | undefined,
+    fromStatus = "todo",
+    toStatus = "todo",
+  ) =>
+    dropSwimlane({
+      overId,
+      itemOf: (id) => cards.get(id),
+      fromStatus,
+      toStatus,
+    });
+
+  test("a well's own droppable names its swimlane", () => {
+    expect(over(`${CRITICAL_DROPPABLE_PREFIX}todo`)).toBe("critical");
+    expect(over(`${LANE_DROPPABLE_PREFIX}todo`)).toBe("improvements");
+  });
+
+  test("a card names the swimlane it sits in", () => {
+    expect(over("urgent")).toBe("critical");
+    expect(over("plain")).toBe("improvements");
+  });
+
+  test("nothing under the pointer is no swimlane", () => {
+    expect(over(undefined)).toBeNull();
+    expect(over("gone")).toBeNull();
+  });
+
+  test("a lane change keeps the card's well unless dropped on Critical", () => {
+    expect(over("plain", "todo", "in_progress")).toBeNull();
+    expect(over("urgent", "todo", "in_progress")).toBeNull();
+    expect(
+      over(`${LANE_DROPPABLE_PREFIX}in_progress`, "todo", "in_progress"),
+    ).toBeNull();
+    expect(
+      over(`${CRITICAL_DROPPABLE_PREFIX}in_progress`, "todo", "in_progress"),
+    ).toBe("critical");
+  });
+
+  test("Done and Archived have no swimlanes", () => {
+    for (const status of ["done", "archived"]) {
+      expect(hasCriticalWell(status)).toBe(false);
+      expect(over("plain", "todo", status)).toBeNull();
+      expect(
+        over(`${LANE_DROPPABLE_PREFIX}${status}`, "todo", status),
+      ).toBeNull();
+      expect(over("plain", status, status)).toBeNull();
+    }
+    expect(hasCriticalWell("todo")).toBe(true);
+  });
+
+  test("an urgent card keeps its priority across a lane round trip", () => {
+    const urgent = cards.get("urgent")!;
+    // Out to In Progress over an Improvements card, then back over one.
+    for (const [from, to] of [
+      ["todo", "in_progress"],
+      ["in_progress", "todo"],
+    ] as const) {
+      const swimlane = over("plain", from, to);
+      expect(swimlane && swimlanePriority(urgent, swimlane)).toBeNull();
+    }
+  });
+
+  test("an urgent card dropped in Done keeps its priority", () => {
+    const urgent = cards.get("urgent")!;
+    const swimlane = over(`${LANE_DROPPABLE_PREFIX}done`, "todo", "done");
+    expect(swimlane && swimlanePriority(urgent, swimlane)).toBeNull();
+  });
+});
+
+describe("swimlanePriority", () => {
+  const at = (patch: Partial<TaskBoardItem>) => ({ ...item("t", 0), ...patch });
+
+  test("into Critical raises an ordinary card to high", () => {
+    expect(swimlanePriority(at({ priority: "low" }), "critical")).toBe("high");
+  });
+
+  test("a card already in its swimlane needs no change", () => {
+    expect(swimlanePriority(at({ priority: "urgent" }), "critical")).toBeNull();
+    expect(
+      swimlanePriority(at({ priority: "medium" }), "improvements"),
+    ).toBeNull();
+  });
+
+  test("out of Critical lowers a card that priority alone kept there", () => {
+    expect(swimlanePriority(at({ priority: "urgent" }), "improvements")).toBe(
+      "medium",
+    );
+  });
+
+  test("a security card stays critical, so its priority is left alone", () => {
+    expect(
+      swimlanePriority(
+        at({ priority: "high", type: "security" }),
+        "improvements",
+      ),
+    ).toBeNull();
   });
 });

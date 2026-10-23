@@ -58,7 +58,7 @@ export type TabRouteLocation =
   | { kind: "project-destination"; destination: ProjectTabDestination }
   | { kind: "org-destination"; destination: OrgTabDestination };
 
-export type ProjectTabDestination = "tasks" | "reports";
+export type ProjectTabDestination = "tasks" | "reports" | "plan" | "monitoring";
 export type OrgTabDestination = "home" | "library" | "discover";
 
 type AgentParams = { org: string; agentId: string };
@@ -76,6 +76,8 @@ export type TabRouteTarget =
   | { to: typeof DESTINATION_ROUTE.reports; params: OrgParams; search: {} }
   | { to: typeof DESTINATION_ROUTE.library; params: OrgParams; search: {} }
   | { to: typeof DESTINATION_ROUTE.discover; params: OrgParams; search: {} }
+  | { to: typeof DESTINATION_ROUTE.plan; params: OrgParams; search: {} }
+  | { to: typeof DESTINATION_ROUTE.monitoring; params: OrgParams; search: {} }
   | { to: typeof PROJECT_ROUTE.root; params: AgentParams; search: {} }
   | {
       to: typeof PROJECT_ROUTE.tasks;
@@ -83,6 +85,8 @@ export type TabRouteTarget =
       search: {};
     }
   | { to: typeof PROJECT_ROUTE.reports; params: AgentParams; search: {} }
+  | { to: typeof PROJECT_ROUTE.plan; params: AgentParams; search: {} }
+  | { to: typeof PROJECT_ROUTE.monitoring; params: AgentParams; search: {} }
   | { to: typeof PROJECT_ROUTE.siteEditor; params: AgentParams; search: {} }
   | {
       to: typeof PROJECT_ROUTE.siteEditorContent;
@@ -226,6 +230,8 @@ const PROJECT_DESTINATION_BY_TAB: Readonly<
 > = {
   board: "tasks",
   reports: "reports",
+  plan: "plan",
+  monitoring: "monitoring",
 };
 
 const AGENT_SECTION_BY_TAB: Readonly<
@@ -333,23 +339,35 @@ export function tabRouteTarget(input: {
   const location = tabRouteLocation(input.tabId);
 
   switch (location.kind) {
-    case "project-destination":
-      if (input.destinationScope === "organization") {
-        return location.destination === "tasks"
-          ? {
-              to: DESTINATION_ROUTE.tasks,
-              params: { org, taskKey: input.taskKey },
-              search: {},
-            }
-          : { to: DESTINATION_ROUTE.reports, params: { org }, search: {} };
+    case "project-destination": {
+      const organizationScope = input.destinationScope === "organization";
+      switch (location.destination) {
+        case "tasks":
+          return organizationScope
+            ? {
+                to: DESTINATION_ROUTE.tasks,
+                params: { org, taskKey: input.taskKey },
+                search: {},
+              }
+            : {
+                to: PROJECT_ROUTE.tasks,
+                params: { ...params, taskKey: input.taskKey },
+                search: {},
+              };
+        case "reports":
+          return organizationScope
+            ? { to: DESTINATION_ROUTE.reports, params: { org }, search: {} }
+            : { to: PROJECT_ROUTE.reports, params, search: {} };
+        case "plan":
+          return organizationScope
+            ? { to: DESTINATION_ROUTE.plan, params: { org }, search: {} }
+            : { to: PROJECT_ROUTE.plan, params, search: {} };
+        case "monitoring":
+          return organizationScope
+            ? { to: DESTINATION_ROUTE.monitoring, params: { org }, search: {} }
+            : { to: PROJECT_ROUTE.monitoring, params, search: {} };
       }
-      return location.destination === "tasks"
-        ? {
-            to: PROJECT_ROUTE.tasks,
-            params: { ...params, taskKey: input.taskKey },
-            search: {},
-          }
-        : { to: PROJECT_ROUTE.reports, params, search: {} };
+    }
     case "org-destination": {
       switch (location.destination) {
         case "home":
@@ -516,6 +534,22 @@ export function navigateToTabRouteTarget(
         replace,
       });
       return;
+    case DESTINATION_ROUTE.plan:
+      navigate({
+        to: DESTINATION_ROUTE.plan,
+        params: target.params,
+        search,
+        replace,
+      });
+      return;
+    case DESTINATION_ROUTE.monitoring:
+      navigate({
+        to: DESTINATION_ROUTE.monitoring,
+        params: target.params,
+        search,
+        replace,
+      });
+      return;
     case DESTINATION_ROUTE.library:
       navigate({
         to: DESTINATION_ROUTE.library,
@@ -543,6 +577,22 @@ export function navigateToTabRouteTarget(
     case PROJECT_ROUTE.reports:
       navigate({
         to: PROJECT_ROUTE.reports,
+        params: target.params,
+        search,
+        replace,
+      });
+      return;
+    case PROJECT_ROUTE.plan:
+      navigate({
+        to: PROJECT_ROUTE.plan,
+        params: target.params,
+        search,
+        replace,
+      });
+      return;
+    case PROJECT_ROUTE.monitoring:
+      navigate({
+        to: PROJECT_ROUTE.monitoring,
         params: target.params,
         search,
         replace,

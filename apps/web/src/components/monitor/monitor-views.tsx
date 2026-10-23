@@ -6,12 +6,16 @@
  */
 
 import type { ReactNode } from "react";
-import { resolveAgentSiteSlug } from "@decocms/shared/site-slug";
+import {
+  resolveAgentSiteSlug,
+  resolveAnalyticsSiteSlug,
+} from "@decocms/shared/site-slug";
 import { Page } from "@/components/page";
 import { Panel } from "@/components/panel";
 import { useControlPlaneViews } from "@/hooks/use-organization-settings";
+import { usePublicConfig } from "@/hooks/use-public-config";
 import { useT, type TFunction } from "@/i18n/use-t.ts";
-import { AnalyticsTab } from "@/layouts/main-panel-tabs/analytics-tab";
+import { CdnTab } from "@/layouts/main-panel-tabs/cdn-tab";
 import { ExperimentsTab } from "@/layouts/main-panel-tabs/experiments-tab";
 import { MetricCard } from "@/layouts/task-board/analytics-sections";
 import {
@@ -135,7 +139,10 @@ const PREVIEW_EXPERIMENTS = monitorPreview(null).experiments;
 function useSiteProjects(): SiteProject[] {
   return useVirtualMCPsNonBlocking().flatMap((p) => {
     const site = isStudioPackAgent(p.id) ? null : resolveAgentSiteSlug(p);
-    return site ? [{ id: p.id, title: p.title, icon: p.icon, site }] : [];
+    const analyticsSite = resolveAnalyticsSiteSlug(p);
+    return site && analyticsSite
+      ? [{ id: p.id, title: p.title, icon: p.icon, site, analyticsSite }]
+      : [];
   });
 }
 
@@ -193,7 +200,16 @@ function ProjectScreen({
       </div>
     );
   }
-  if (!scopeId) return org(projects);
+  if (!scopeId) {
+    // The board's frame: same width, gutters and rhythm as Metrics.
+    return (
+      <div className="flex h-full min-h-0 flex-col overflow-auto">
+        <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 px-4 pt-6 pb-10 md:px-10">
+          {org(projects)}
+        </div>
+      </div>
+    );
+  }
   return (
     <div key={scopeId} className="flex h-full min-h-0 flex-col">
       {render(scopeId)}
@@ -215,15 +231,31 @@ export function ExperimentsView({ scopeId }: { scopeId: string | null }) {
   );
 }
 
-export function AnalyticsView({ scopeId }: { scopeId: string | null }) {
+/** A site's Monitor (CDN traffic and audience), gated as its own route is. */
+export function AnalyticsView({
+  scopeId,
+  date,
+  onDate,
+}: {
+  scopeId: string | null;
+  /** The org view's day, shared with Metrics' picker (`YYYY-MM-DD`). */
+  date: string;
+  onDate: (date: string) => void;
+}) {
   const views = useControlPlaneViews();
+  const config = usePublicConfig();
   return (
     <ProjectScreen
       scopeId={scopeId}
-      enabled={views.analytics}
+      enabled={
+        views.monitor &&
+        (config.monitorEnabled === true || config.auth.localMode === true)
+      }
       empty="analytics"
-      render={(id) => <AnalyticsTab virtualMcpId={id} />}
-      org={(projects) => <OrgAnalytics projects={projects} />}
+      render={(id) => <CdnTab virtualMcpId={id} />}
+      org={(projects) => (
+        <OrgAnalytics projects={projects} date={date} onDate={onDate} />
+      )}
     />
   );
 }

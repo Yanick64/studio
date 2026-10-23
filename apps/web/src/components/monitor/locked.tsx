@@ -18,7 +18,7 @@ import { cn } from "@decocms/ui/lib/utils.ts";
 import { IntegrationIcon } from "@/components/integration-icon";
 import { useProjectContext } from "@/sdk";
 import { formatCount } from "@/layouts/main-panel-tabs/monitor-v8";
-import { MetricCard } from "@/layouts/task-board/analytics-sections";
+import type { TimelinePoint } from "@/layouts/main-panel-tabs/cdn-tab";
 import { CopyButton } from "@/layouts/main-panel-tabs/analytics-tab";
 import { useT } from "@/i18n/use-t.ts";
 import { openNewProjectDialog } from "@/components/projects/new-project-store";
@@ -26,6 +26,13 @@ import { ConnectSourceDialog } from "@/routes/reports-onboarding/connect-source-
 import { VtexConnectButton } from "./vtex-connect-dialog";
 import type { ExperimentRow, SourceId, SourceState } from "./board";
 import { connectPowers, platformName } from "./sources-panel";
+import {
+  type SiteUsage,
+  SitesMonitor,
+  type SitesMonitorData,
+  sumSummaries,
+  sumTimelines,
+} from "./sites-monitor";
 import { useSourceIcons } from "./use-source-icons";
 
 /** How far back the preview sits behind the button. */
@@ -563,44 +570,78 @@ export function ExperimentsPreview({
   );
 }
 
-/** Site traffic across projects, made up for the faded background. */
-const SITES = [
-  { name: "Site", visitors: 48_200, pageviews: 182_400, sessions: 61_900 },
-  { name: "App", visitors: 21_700, pageviews: 64_100, sessions: 27_300 },
-  { name: "Blog", visitors: 9_400, pageviews: 15_800, sessions: 10_200 },
+/** A day of traffic by the hour, quiet at night, made up for the faded background. */
+function previewTimeline(scale: number, lift: number): TimelinePoint[] {
+  return Array.from({ length: 24 }, (_, hour) => {
+    const daylight = Math.max(0.15, Math.sin(((hour - 5) / 24) * Math.PI * 2));
+    const requests = Math.round(scale * daylight * (1 + lift * (hour % 3)));
+    return {
+      bucket: `2026-01-01 ${String(hour).padStart(2, "0")}:00:00`,
+      requests,
+      pageviews: Math.round(requests / 26),
+      bandwidth_bytes: requests * 28_000,
+      cache_hit_ratio: 0.82 + daylight * 0.06,
+    };
+  });
+}
+
+function previewSite(
+  name: string,
+  scale: number,
+  lift: number,
+): SiteUsage & {
+  timeline: TimelinePoint[];
+  previousTimeline: TimelinePoint[];
+} {
+  const timeline = previewTimeline(scale, lift);
+  const previousTimeline = previewTimeline(scale * 0.9, lift / 2);
+  const summary = (points: TimelinePoint[]) =>
+    sumSummaries(
+      points.map((p) => ({
+        total_requests: p.requests,
+        total_bandwidth_bytes: p.bandwidth_bytes,
+        cache_hit_ratio: p.cache_hit_ratio,
+        avg_latency_ms: 42,
+        status_2xx_count: p.requests,
+        status_4xx_count: 0,
+        status_5xx_count: 0,
+        unique_countries: 12,
+        pageviews: p.pageviews,
+      })),
+    );
+  return {
+    id: name,
+    name,
+    summary: summary(timeline),
+    previous: summary(previousTimeline),
+    series: timeline.map((p) => p.pageviews),
+    previousSeries: previousTimeline.map((p) => p.pageviews),
+    timeline,
+    previousTimeline,
+  };
+}
+
+const PREVIEW_SITES = [
+  previewSite("Site", 42_000, 0.06),
+  previewSite("App", 15_000, 0.04),
+  previewSite("Blog", 3_800, 0.02),
 ];
+
+const PREVIEW_ANALYTICS: Omit<SitesMonitorData, "currentLabel"> = {
+  summary: sumSummaries(PREVIEW_SITES.map((s) => s.summary)),
+  previous: sumSummaries(
+    PREVIEW_SITES.flatMap((s) => (s.previous ? [s.previous] : [])),
+  ),
+  timeline: sumTimelines(PREVIEW_SITES.map((s) => s.timeline)),
+  previousTimeline: sumTimelines(PREVIEW_SITES.map((s) => s.previousTimeline)),
+  sites: PREVIEW_SITES,
+};
 
 export function AnalyticsPreview() {
   const t = useT();
-  const total = (k: "visitors" | "pageviews" | "sessions") =>
-    formatCount(SITES.reduce((n, s) => n + s[k], 0));
   return (
-    <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <MetricCard
-          title={t("monitor.orgAnalytics.visitors")}
-          value={total("visitors")}
-        />
-        <MetricCard
-          title={t("monitor.orgAnalytics.pageviews")}
-          value={total("pageviews")}
-        />
-        <MetricCard
-          title={t("monitor.orgAnalytics.sessions")}
-          value={total("sessions")}
-        />
-      </div>
-      <section className={CARD}>
-        {SITES.map((s) => (
-          <div key={s.name} className={cn(LINE, "justify-between")}>
-            <span className="text-foreground">{s.name}</span>
-            <span className="tnum text-muted-foreground">
-              {formatCount(s.visitors)} · {formatCount(s.pageviews)} ·{" "}
-              {formatCount(s.sessions)}
-            </span>
-          </div>
-        ))}
-      </section>
-    </>
+    <SitesMonitor
+      data={{ ...PREVIEW_ANALYTICS, currentLabel: t("monitor.chart.today") }}
+    />
   );
 }

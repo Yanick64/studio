@@ -1,4 +1,4 @@
-import { type CSSProperties, useRef, useState } from "react";
+import { type CSSProperties, type ReactNode, useRef, useState } from "react";
 import { Link, useSearch } from "@tanstack/react-router";
 import { useOrgFlag } from "@/hooks/use-organization-settings";
 import { LegacyExperimentsTab } from "./experiments-tab-legacy";
@@ -99,14 +99,14 @@ import {
 
 const STATUSES: ExperimentStatus[] = ["running", "paused", "draft", "ended"];
 
-export const STATUS_DOT: Record<ExperimentStatus, string> = {
+const STATUS_DOT: Record<ExperimentStatus, string> = {
   running: "bg-success",
   paused: "bg-warning",
   draft: "bg-muted-foreground/60",
   ended: "bg-muted-foreground/40",
 };
 
-export function useStatusLabel() {
+function useStatusLabel() {
   const t = useT();
   return (status: ExperimentStatus) => {
     switch (status) {
@@ -184,7 +184,7 @@ function daysSince(iso: string): number {
 }
 
 /** "Started 14d ago" / "Created today": the most relevant date for a row. */
-export function useLifecycleLabel() {
+function useLifecycleLabel() {
   const t = useT();
   const when = (iso: string) => {
     const days = daysSince(iso);
@@ -1542,14 +1542,20 @@ function ReviewPanel({
     </Page>
   );
 }
-function ExperimentRow({
+/**
+ * One experiment in the list. Across the org the Monitor draws the same row,
+ * naming the project instead of offering the project's own actions.
+ */
+export function ExperimentRow({
   experiment,
   onOpen,
   actions,
+  project,
 }: {
   experiment: Experiment;
   onOpen: () => void;
-  actions: ExperimentActions;
+  actions?: ExperimentActions;
+  project?: ReactNode;
 }) {
   const t = useT();
   const lifecycle = useLifecycleLabel();
@@ -1583,36 +1589,46 @@ function ExperimentRow({
       <div className="flex w-24 flex-shrink-0">
         <StatusBadge status={experiment.status} />
       </div>
-      <div className="relative z-10 flex-shrink-0">
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={t("experiments.action.more")}
-              className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
-            >
-              <DotsHorizontal size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            {statusActions.map((a) => (
-              <DropdownMenuItem
-                key={a.to}
-                onSelect={() => actions.onStatusChange(a.to)}
+      {project && (
+        <div className="hidden w-44 flex-shrink-0 text-xs text-muted-foreground lg:flex">
+          {project}
+        </div>
+      )}
+      {actions && (
+        <div className="relative z-10 flex-shrink-0">
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={t("experiments.action.more")}
+                className="opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
               >
-                <a.icon />
-                {a.label}
+                <DotsHorizontal size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {statusActions.map((a) => (
+                <DropdownMenuItem
+                  key={a.to}
+                  onSelect={() => actions.onStatusChange(a.to)}
+                >
+                  <a.icon />
+                  {a.label}
+                </DropdownMenuItem>
+              ))}
+              {statusActions.length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={actions.onDelete}
+              >
+                <Trash01 />
+                {t("experiments.action.delete")}
               </DropdownMenuItem>
-            ))}
-            {statusActions.length > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuItem variant="destructive" onSelect={actions.onDelete}>
-              <Trash01 />
-              {t("experiments.action.delete")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 }

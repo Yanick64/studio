@@ -38,6 +38,7 @@ export const monitor = {
   "monitor.verdict.improvement": "Melhorou",
   "monitor.verdict.neutral": "Sem efeito",
   "monitor.verdict.settling": "Medindo",
+  "monitor.verdict.unmeasured": "Não medido",
   "monitor.projects.title": "Projetos",
   "monitor.projects.project": "Projeto",
   "monitor.projects.orders": "Pedidos hoje",
@@ -119,6 +120,10 @@ export const monitor = {
   "monitor.locked.firstExperiment.title": "Nenhum experimento ainda",
   "monitor.locked.metrics.title": "Conecte suas fontes",
   "monitor.connect.short": "Conectar",
+  "monitor.repos.button": "Repositórios",
+  "monitor.repos.hint":
+    "Todo repositório é acompanhado até você desligá-lo. Ligue um de novo para ver seus deploys.",
+  "monitor.repos.toggle": "Acompanhar deploys de {repo}",
   "monitor.connect.done": "Conectado",
   "monitor.platform.orders": "VTEX",
   "monitor.platform.site": "Site deco",

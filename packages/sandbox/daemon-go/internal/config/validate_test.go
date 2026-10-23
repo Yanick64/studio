@@ -38,6 +38,31 @@ func TestValidateApplicationRejectsEscapingPmPath(t *testing.T) {
 	}
 }
 
+func TestValidateGitRejectsUnsupportedCloneUrlScheme(t *testing.T) {
+	cases := []string{
+		"ext::sh -c touch% /tmp/pwned",
+		"git://example.com/repo.git",
+		"ssh://git@example.com/repo.git",
+	}
+	for _, raw := range cases {
+		t.Run(raw, func(t *testing.T) {
+			git := &GitConfig{Repository: &GitRepository{CloneUrl: Str(raw)}}
+			if reason := validateGit(git); reason == "" {
+				t.Fatalf("validateGit accepted cloneUrl %q", raw)
+			}
+		})
+	}
+}
+
+func TestValidateGitAcceptsHttpsAndFileCloneUrl(t *testing.T) {
+	for _, raw := range []string{"https://example.com/repo.git", "file:///tmp/repo.git"} {
+		git := &GitConfig{Repository: &GitRepository{CloneUrl: Str(raw)}}
+		if reason := validateGit(git); reason != "" {
+			t.Fatalf("validateGit rejected %q: %s", raw, reason)
+		}
+	}
+}
+
 func TestValidateGitRejectsDuplicateSecondaryRepoNames(t *testing.T) {
 	git := &GitConfig{
 		Repository: &GitRepository{CloneUrl: Str("https://example.com/primary.git")},

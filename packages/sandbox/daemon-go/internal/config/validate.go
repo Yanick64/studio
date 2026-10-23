@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -85,6 +86,9 @@ func validateGit(git *GitConfig) string {
 	if *git.Repository.CloneUrl == "" {
 		return "git.repository.cloneUrl is empty"
 	}
+	if reason := validateCloneUrl(*git.Repository.CloneUrl); reason != "" {
+		return "git.repository.cloneUrl " + reason
+	}
 	if git.Repository.Branch != nil {
 		b := *git.Repository.Branch
 		if !IsSyntheticBranch(b) && (!branchRe.MatchString(b) || strings.HasPrefix(b, "-")) {
@@ -95,6 +99,9 @@ func validateGit(git *GitConfig) string {
 	for i, repo := range git.Repositories {
 		if repo.CloneUrl == nil || *repo.CloneUrl == "" {
 			return fmt.Sprintf("git.repositories[%d].cloneUrl is required", i)
+		}
+		if reason := validateCloneUrl(*repo.CloneUrl); reason != "" {
+			return fmt.Sprintf("git.repositories[%d].cloneUrl %s", i, reason)
 		}
 		// The name becomes a directory, so it is a path input from off-pod.
 		if repo.RepoName == nil || !repoNameRe.MatchString(*repo.RepoName) {
@@ -131,6 +138,18 @@ func validateGit(git *GitConfig) string {
 		if invalidCoAuthorChars.MatchString(*git.Identity.UserEmail) || !emailRe.MatchString(*git.Identity.UserEmail) {
 			return "git.identity.userEmail is invalid"
 		}
+	}
+	return ""
+}
+
+// validateCloneUrl allows https (what Studio mints) and file (local bare
+// repos; the sandbox already exposes its own filesystem). Every other scheme
+// is a crafted config: `ext::<command>` runs a shell command as the clone
+// transport, and ssh/git would reach hosts Studio never hands out.
+func validateCloneUrl(raw string) string {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "file") {
+		return "must be an https or file URL"
 	}
 	return ""
 }

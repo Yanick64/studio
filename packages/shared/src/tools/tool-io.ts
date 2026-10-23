@@ -3704,6 +3704,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -3764,10 +3765,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -3973,6 +3993,7 @@ export interface StudioToolIO {
                                 | "cdn"
                                 | "automations"
                                 | "experiments"
+                                | "calendar"
                               )[]
                             | null
                             | undefined;
@@ -4033,10 +4054,29 @@ export interface StudioToolIO {
                     | "cdn"
                     | "automations"
                     | "experiments"
+                    | "calendar"
                   )[]
                 | null
                 | undefined;
               sidebarViewsVersion?: 1 | undefined;
+              sidebarViewsSeen?:
+                | (
+                    | "overview"
+                    | "reports"
+                    | "board"
+                    | "site-editor"
+                    | "assets"
+                    | "releases"
+                    | "hosting"
+                    | "e2e"
+                    | "analytics"
+                    | "cdn"
+                    | "automations"
+                    | "experiments"
+                    | "calendar"
+                  )[]
+                | null
+                | undefined;
               repository?:
                 | {
                     url: string;
@@ -4165,6 +4205,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -4225,10 +4266,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -4395,6 +4455,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -4455,10 +4516,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -4616,6 +4696,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -4676,10 +4757,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -4838,6 +4938,7 @@ export interface StudioToolIO {
                                 | "cdn"
                                 | "automations"
                                 | "experiments"
+                                | "calendar"
                               )[]
                             | null
                             | undefined;
@@ -4898,10 +4999,29 @@ export interface StudioToolIO {
                     | "cdn"
                     | "automations"
                     | "experiments"
+                    | "calendar"
                   )[]
                 | null
                 | undefined;
               sidebarViewsVersion?: 1 | undefined;
+              sidebarViewsSeen?:
+                | (
+                    | "overview"
+                    | "reports"
+                    | "board"
+                    | "site-editor"
+                    | "assets"
+                    | "releases"
+                    | "hosting"
+                    | "e2e"
+                    | "analytics"
+                    | "cdn"
+                    | "automations"
+                    | "experiments"
+                    | "calendar"
+                  )[]
+                | null
+                | undefined;
               repository?:
                 | {
                     url: string;
@@ -5038,6 +5158,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -5098,10 +5219,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -5257,6 +5397,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -5317,10 +5458,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;
@@ -6892,6 +7052,7 @@ export interface StudioToolIO {
                             | "cdn"
                             | "automations"
                             | "experiments"
+                            | "calendar"
                           )[]
                         | null
                         | undefined;
@@ -6952,10 +7113,29 @@ export interface StudioToolIO {
                 | "cdn"
                 | "automations"
                 | "experiments"
+                | "calendar"
               )[]
             | null
             | undefined;
           sidebarViewsVersion?: 1 | undefined;
+          sidebarViewsSeen?:
+            | (
+                | "overview"
+                | "reports"
+                | "board"
+                | "site-editor"
+                | "assets"
+                | "releases"
+                | "hosting"
+                | "e2e"
+                | "analytics"
+                | "cdn"
+                | "automations"
+                | "experiments"
+                | "calendar"
+              )[]
+            | null
+            | undefined;
           repository?:
             | {
                 url: string;

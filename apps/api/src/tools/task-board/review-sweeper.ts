@@ -58,6 +58,7 @@
  */
 
 import type { StudioContextFactory } from "@/automations/fire";
+import { enqueueAmpReview, usesAmpReview } from "./amp-task-run";
 import type { StudioContext } from "@/core/studio-context";
 import type { OrganizationBillingStorage } from "@/storage/organization-billing";
 import type { TaskBoardStorage } from "@/storage/task-board";
@@ -580,6 +581,8 @@ export class TaskBoardReviewSweeper {
       item.assignedBy ?? item.createdBy,
     );
     if (!ctx) return false;
+
+    if (usesAmpReview(organizationId)) return enqueueAmpReview(ctx, item);
 
     if (prs.length === 0) {
       // Nothing linked is not the same as nothing opened: a `claude-code` run

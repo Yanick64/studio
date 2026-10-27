@@ -31,6 +31,47 @@ describe("verifyGithubSignature", () => {
 describe("prRefsFromGithubEvent", () => {
   const repository = { name: "storefront", owner: { login: "deco-cx" } };
 
+  it("tracks PR head and lifecycle events, rejecting unrelated actions and invalid identities", () => {
+    for (const action of [
+      "opened",
+      "synchronize",
+      "reopened",
+      "ready_for_review",
+      "closed",
+    ]) {
+      expect(
+        prRefsFromGithubEvent("pull_request", {
+          action,
+          number: 7,
+          repository,
+        }),
+      ).toEqual([{ repoOwner: "deco-cx", repoName: "storefront", number: 7 }]);
+    }
+    for (const number of [0, -1, 1.5, "7", null, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(
+        prRefsFromGithubEvent("pull_request", {
+          action: "synchronize",
+          number,
+          repository,
+        }),
+      ).toEqual([]);
+    }
+    expect(
+      prRefsFromGithubEvent("pull_request", {
+        action: "labeled",
+        number: 7,
+        repository,
+      }),
+    ).toEqual([]);
+    expect(prRefsFromGithubEvent("pull_request", null)).toEqual([]);
+    expect(
+      prRefsFromGithubEvent("pull_request", {
+        action: "synchronize",
+        number: 7,
+      }),
+    ).toEqual([]);
+  });
+
   it("reads every PR a check suite belongs to, deduped", () => {
     expect(
       prRefsFromGithubEvent("check_suite", {

@@ -6,6 +6,9 @@
  */
 
 import { readRepositoryMetadata } from "./repository-metadata";
+import { createHash } from "node:crypto";
+import { ampPersistedText } from "../tools/task-board/amp-protocol";
+import { ampCustomerMessage } from "@decocms/shared/task-board-amp";
 import { sql, type Kysely } from "kysely";
 import { type RepoRef, splitOwnerName } from "@decocms/shared/git-providers";
 // Shared with the quota gate, which charges the same class of task.
@@ -18,6 +21,7 @@ import { isBoardRunThread } from "../tools/task-board/task-run-context";
 import { createAutomationsStorage } from "./automations";
 import type {
   Database,
+  AmpTaskPhase,
   TaskBoardActivity,
   TaskBoardActivityAction,
   TaskBoardItem,
@@ -525,6 +529,694 @@ export class TaskBoardStorage {
     // Freshly created — no linked threads yet, and in its first lane since now.
     const item = this.itemFromDbRow(row);
     return { ...item, statusSince: item.createdAt };
+  }
+
+  async getAmpRun(taskId: string, organizationId: string) {
+    return this.db
+      .selectFrom("task_board_amp_runs")
+      .selectAll()
+      .where("task_id", "=", taskId)
+      .where("organization_id", "=", organizationId)
+      .executeTakeFirst();
+  }
+
+  async hasAmpProject(
+    taskId: string,
+    organizationId: string,
+  ): Promise<boolean> {
+    const project = await this.db
+      .selectFrom("task_board_items as task")
+      .innerJoin("connections as project", "project.id", "task.virtual_mcp_id")
+      .select("project.id")
+      .where("task.id", "=", taskId)
+      .where("task.organization_id", "=", organizationId)
+      .where("project.organization_id", "=", organizationId)
+      .where("project.connection_type", "=", "VIRTUAL")
+      .where("project.status", "=", "active")
+      .where((eb) =>
+        eb.not(
+          eb.exists(
+            eb
+              .selectFrom("automations as automation")
+              .innerJoin(
+                "automation_triggers as trigger",
+                "trigger.automation_id",
+                "automation.id",
+              )
+              .select("automation.id")
+              .whereRef("automation.virtual_mcp_id", "=", "project.id")
+              .whereRef(
+                "automation.organization_id",
+                "=",
+                "task.organization_id",
+              )
+              .where("trigger.type", "=", "webhook")
+              .where(sql<string>`trigger.params::jsonb->>'intake'`, "in", [
+                "teamleader-orbit",
+                "gmail",
+                "sentry",
+              ]),
+          ),
+        ),
+      )
+      .executeTakeFirst();
+    return !!project;
+  }
+
+  /** Approval covers task content, repository bindings and human feedback. */
+  async ampContextHash(taskId: string, organizationId: string) {
+    const task = await this.db
+      .selectFrom("task_board_items")
+      .select([
+        "title",
+        "description",
+        "virtual_mcp_id",
+        "repo",
+        "webhook_context_revision",
+      ])
+      .where("id", "=", taskId)
+      .where("organization_id", "=", organizationId)
+      .executeTakeFirstOrThrow();
+    const project = task.virtual_mcp_id
+      ? await this.db
+          .selectFrom("connections")
+          .select(["metadata", "status"])
+          .where("id", "=", task.virtual_mcp_id)
+          .where("organization_id", "=", organizationId)
+          .executeTakeFirst()
+      : null;
+    const metadata = readRepositoryMetadata(
+      typeof project?.metadata === "string"
+        ? JSON.parse(project.metadata)
+        : project?.metadata,
+    );
+    const comments = await this.db
+      .selectFrom("task_board_comments")
+      .select(["id", "body"])
+      .where("task_board_item_id", "=", taskId)
+      .where("author_id", "!=", SUPER_AGENT_ASSIGNEE_ID)
+      .orderBy("id")
+      .execute();
+    return createHash("sha256")
+      .update(
+        JSON.stringify({
+          task,
+          project: {
+            status: project?.status,
+            repository: metadata?.repository,
+            additionalRepositories: metadata?.additionalRepositories,
+          },
+          comments,
+        }),
+      )
+      .digest("hex");
+  }
+
+  async recordAmpDispatchFailure(
+    taskId: string,
+    organizationId: string,
+    body: string,
+  ) {
+    return this.inTransaction(async (trx) => {
+      const task = await trx
+        .selectFrom("task_board_items")
+        .select("id")
+        .where("id", "=", taskId)
+        .where("organization_id", "=", organizationId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!task) return;
+      const storage = new TaskBoardStorage(trx);
+      const run = await storage.getAmpRun(taskId, organizationId);
+      if (run && !["completed", "failed"].includes(run.state)) return;
+      await storage.createComment({
+        taskBoardItemId: taskId,
+        organizationId,
+        authorId: SUPER_AGENT_ASSIGNEE_ID,
+        body: ampPersistedText(`Amp did not start. ${body}`),
+      });
+      await trx
+        .updateTable("task_board_items")
+        .set({ status: "todo", updated_at: new Date().toISOString() })
+        .where("id", "=", taskId)
+        .where("organization_id", "=", organizationId)
+        .where("assignee_id", "=", SUPER_AGENT_ASSIGNEE_ID)
+        .where("status", "=", "in_progress")
+        .execute();
+    });
+  }
+
+  async pendingAmpRuns(organizationId: string) {
+    return this.db
+      .selectFrom("task_board_amp_runs")
+      .selectAll()
+      .where("organization_id", "=", organizationId)
+      .where("state", "not in", ["completed", "failed"])
+      .execute();
+  }
+
+  async ampBackgroundTasks(organizationId: string) {
+    return this.db
+      .selectFrom("task_board_items")
+      .select(["id", "status", "assigned_by", "created_by"])
+      .where("organization_id", "=", organizationId)
+      .where("status", "in", ["triage", "in_review"])
+      .orderBy("updated_at", "desc")
+      .limit(100)
+      .execute();
+  }
+
+  /** The task lock serializes competing dispatches before any remote side effect. */
+  async queueAmpRun(params: {
+    taskId: string;
+    organizationId: string;
+    runId: string;
+    prompt: string;
+    repositories: string[];
+    requestedBy: string;
+    phase?: AmpTaskPhase;
+    contextHash?: string;
+    approvedPlanRunId?: string;
+    expectedStatus?: string;
+    expectedAssigneeId?: string | null;
+    expectedRunId?: string | null;
+    reviewKey?: string;
+    reviewTargets?: { url: string; headSha: string }[];
+    force?: boolean;
+  }) {
+    return this.inTransaction(async (trx) => {
+      const task = await trx
+        .selectFrom("task_board_items")
+        .selectAll()
+        .where("id", "=", params.taskId)
+        .where("organization_id", "=", params.organizationId)
+        .forUpdate()
+        .executeTakeFirst();
+      const phase = params.phase ?? "legacy";
+      if (
+        !task ||
+        ((phase === "legacy" || phase === "implementation") &&
+          task.assignee_id !== SUPER_AGENT_ASSIGNEE_ID)
+      ) {
+        throw new Error("The task must still be assigned to Super Agent.");
+      }
+      const storage = new TaskBoardStorage(trx);
+      const previous = await storage.getAmpRun(
+        params.taskId,
+        params.organizationId,
+      );
+      if (previous?.run_id === params.runId) return previous;
+      if (
+        !params.force &&
+        phase === "summary" &&
+        (previous?.summary_context_hash === params.contextHash ||
+          (previous?.phase === "summary" &&
+            previous.context_hash === params.contextHash))
+      )
+        return previous;
+      if (
+        !params.force &&
+        phase === "review" &&
+        previous?.review_key === params.reviewKey
+      )
+        return previous;
+      if (
+        params.expectedRunId !== undefined &&
+        (previous?.run_id ?? null) !== params.expectedRunId
+      )
+        throw new Error("Another Amp operation changed this task. Try again.");
+      if (
+        (params.expectedStatus !== undefined &&
+          task.status !== params.expectedStatus) ||
+        (params.expectedAssigneeId !== undefined &&
+          task.assignee_id !== params.expectedAssigneeId)
+      ) {
+        throw new Error(
+          "The task status or assignee changed. Reload the task before trying again.",
+        );
+      }
+      if (previous && !["completed", "failed"].includes(previous.state)) {
+        throw new Error(
+          "This task already has an Amp run. Open its Amp link to follow it; a second run was not started.",
+        );
+      }
+      if (
+        phase !== "legacy" &&
+        (!params.contextHash ||
+          params.contextHash !==
+            (await storage.ampContextHash(
+              params.taskId,
+              params.organizationId,
+            )))
+      ) {
+        throw new Error(
+          "The task or repositories changed. Generate a new plan before approving.",
+        );
+      }
+      if (
+        phase === "implementation" &&
+        (task.status !== "todo" ||
+          previous?.phase !== "planning" ||
+          previous.state !== "completed" ||
+          !previous.plan_text ||
+          previous.plan_run_id !== params.approvedPlanRunId ||
+          previous.context_hash !== params.contextHash)
+      ) {
+        throw new Error(
+          "Approve the current completed plan while the task is in Todo.",
+        );
+      }
+      if (
+        (phase === "summary" && task.status !== "triage") ||
+        (phase === "review" &&
+          (task.status !== "in_review" ||
+            !params.reviewKey ||
+            !params.reviewTargets?.length))
+      ) {
+        throw new Error("The task is no longer in the requested Amp phase.");
+      }
+      const repositoriesChanged =
+        previous &&
+        JSON.stringify(previous.repositories) !==
+          JSON.stringify(params.repositories);
+      if (
+        previous?.thread_id &&
+        repositoriesChanged &&
+        (phase === "implementation" || phase === "legacy")
+      ) {
+        throw new Error(
+          "This task's repositories changed. Restore them before continuing its existing Amp thread.",
+        );
+      }
+      const comment = await storage.createComment({
+        taskBoardItemId: params.taskId,
+        organizationId: params.organizationId,
+        authorId: SUPER_AGENT_ASSIGNEE_ID,
+        body:
+          phase === "planning"
+            ? "Amp is preparing a plan. Implementation requires approval."
+            : phase === "summary"
+              ? "Amp is summarizing the ticket and checking repository context."
+              : phase === "review"
+                ? "Amp is reviewing the PR and executing the test plan."
+                : "Amp run queued.",
+      });
+      if (!comment) throw new Error("Task no longer exists");
+      const row = {
+        task_id: params.taskId,
+        organization_id: params.organizationId,
+        run_id: params.runId,
+        thread_id:
+          phase === "summary" || phase === "review" || repositoriesChanged
+            ? null
+            : (previous?.thread_id ?? null),
+        state: "queued" as const,
+        phase,
+        context_hash: params.contextHash ?? null,
+        plan_text:
+          phase === "implementation" || phase === "review"
+            ? (previous?.plan_text ?? null)
+            : null,
+        plan_run_id:
+          phase === "implementation" || phase === "review"
+            ? (previous?.plan_run_id ?? null)
+            : null,
+        approved_by:
+          phase === "implementation"
+            ? params.requestedBy
+            : phase === "review"
+              ? (previous?.approved_by ?? null)
+              : null,
+        approved_at:
+          phase === "implementation"
+            ? new Date().toISOString()
+            : phase === "review"
+              ? (previous?.approved_at?.toISOString() ?? null)
+              : null,
+        summary_text: previous?.summary_text ?? null,
+        summary_context_hash: previous?.summary_context_hash ?? null,
+        review_text: null,
+        review_key: params.reviewKey ?? null,
+        review_targets: JSON.stringify(params.reviewTargets ?? []),
+        prompt: ampPersistedText(params.prompt),
+        repositories: JSON.stringify(params.repositories),
+        requested_by: params.requestedBy,
+        comment_id: comment.id,
+        updated_at: new Date().toISOString(),
+      };
+      await trx
+        .insertInto("task_board_amp_runs")
+        .values(row)
+        .onConflict((oc) => oc.column("task_id").doUpdateSet(row))
+        .execute();
+      // The remote executor, rather than the assignment, confirms In Progress.
+      await trx
+        .updateTable("task_board_items")
+        .set({
+          status:
+            phase === "summary" || phase === "review" ? task.status : "todo",
+          ...(phase === "summary" || phase === "review"
+            ? {}
+            : { review_cycle_started_at: null }),
+          ...(phase === "planning"
+            ? {
+                assignee_id: SUPER_AGENT_ASSIGNEE_ID,
+                assigned_by: params.requestedBy,
+              }
+            : {}),
+        })
+        .where("id", "=", params.taskId)
+        .execute();
+      return storage.getAmpRun(params.taskId, params.organizationId);
+    });
+  }
+
+  async claimAmpStart(taskId: string, organizationId: string, runId: string) {
+    return this.inTransaction(async (trx) => {
+      const task = await trx
+        .selectFrom("task_board_items")
+        .select(["status", "assignee_id"])
+        .where("id", "=", taskId)
+        .where("organization_id", "=", organizationId)
+        .forUpdate()
+        .executeTakeFirst();
+      const storage = new TaskBoardStorage(trx);
+      const run = await storage.getAmpRun(taskId, organizationId);
+      if (!task || !run || run.run_id !== runId || run.state !== "queued")
+        return;
+      if (
+        run.phase !== "legacy" &&
+        (task.status !==
+          (run.phase === "summary"
+            ? "triage"
+            : run.phase === "review"
+              ? "in_review"
+              : "todo") ||
+          ((run.phase === "planning" || run.phase === "implementation") &&
+            task.assignee_id !== SUPER_AGENT_ASSIGNEE_ID) ||
+          run.context_hash !==
+            (await storage.ampContextHash(taskId, organizationId)))
+      )
+        throw new Error(
+          "The task changed before Amp started. Generate a new plan.",
+        );
+      return trx
+        .updateTable("task_board_amp_runs")
+        .set({ state: "starting", updated_at: new Date().toISOString() })
+        .where("task_id", "=", taskId)
+        .where("organization_id", "=", organizationId)
+        .where("run_id", "=", runId)
+        .where("state", "=", "queued")
+        .returningAll()
+        .executeTakeFirst();
+    });
+  }
+
+  /** Fence every projection against the current run, including comment and lane writes. */
+  async projectAmpRun(params: {
+    taskId: string;
+    organizationId: string;
+    runId: string;
+    state: Database["task_board_amp_runs"]["state"];
+    threadId?: string;
+    body: string;
+    plan?: string;
+    result?: string;
+    prs?: { url: string; number: number; repo: RepoRef }[];
+  }) {
+    return this.inTransaction(async (trx) => {
+      // Match the dispatch lock order: task first, then its run.
+      await trx
+        .selectFrom("task_board_items")
+        .select("id")
+        .where("id", "=", params.taskId)
+        .where("organization_id", "=", params.organizationId)
+        .forUpdate()
+        .executeTakeFirst();
+      const run = await trx
+        .selectFrom("task_board_amp_runs")
+        .selectAll()
+        .where("task_id", "=", params.taskId)
+        .where("organization_id", "=", params.organizationId)
+        .where("run_id", "=", params.runId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!run || ["completed", "failed"].includes(run.state)) return false;
+      const plan = ampPersistedText(params.plan ?? "").trim();
+      const result = ampPersistedText(params.result ?? "").trim();
+      const invalidPlan =
+        run.phase === "planning" &&
+        params.state === "completed" &&
+        (!plan || plan.length > 40_000);
+      const invalidResult =
+        (run.phase === "summary" || run.phase === "review") &&
+        params.state === "completed" &&
+        (!result ||
+          result.length > (run.phase === "summary" ? 10_000 : 60_000));
+      const state = invalidPlan || invalidResult ? "failed" : params.state;
+      const body = ampPersistedText(
+        invalidPlan
+          ? "Amp returned an empty or oversized plan. Generate a new plan under 40,000 characters."
+          : invalidResult
+            ? "Amp returned an empty or oversized report. Retry this operation."
+            : params.body,
+      );
+      if (
+        run.thread_id &&
+        params.threadId &&
+        run.thread_id !== params.threadId
+      ) {
+        throw new Error("Amp thread identity changed");
+      }
+      const storage = new TaskBoardStorage(trx);
+      let commentId = run.comment_id;
+      const currentSummary =
+        run.phase === "summary" &&
+        state === "completed" &&
+        run.context_hash ===
+          (await storage.ampContextHash(params.taskId, params.organizationId));
+      for (const pr of run.phase === "legacy" || run.phase === "implementation"
+        ? (params.prs ?? [])
+        : []) {
+        await storage.linkPr({
+          taskBoardItemId: params.taskId,
+          organizationId: params.organizationId,
+          url: pr.url,
+          prNumber: pr.number,
+          repo: pr.repo,
+        });
+      }
+      if (!commentId) {
+        commentId =
+          (
+            await storage.createComment({
+              taskBoardItemId: params.taskId,
+              organizationId: params.organizationId,
+              authorId: SUPER_AGENT_ASSIGNEE_ID,
+              body,
+            })
+          )?.id ?? null;
+      } else {
+        await storage.updateComment({
+          id: commentId,
+          organizationId: params.organizationId,
+          callerId: SUPER_AGENT_ASSIGNEE_ID,
+          body,
+        });
+      }
+      await trx
+        .updateTable("task_board_amp_runs")
+        .set({
+          state,
+          ...(run.phase === "planning" && state === "completed"
+            ? {
+                plan_text: plan,
+                plan_run_id: run.run_id,
+              }
+            : {}),
+          ...(currentSummary
+            ? { summary_text: result, summary_context_hash: run.context_hash }
+            : {}),
+          ...(run.phase === "review" && state === "completed"
+            ? { review_text: result }
+            : {}),
+          comment_id: commentId,
+          ...(params.threadId ? { thread_id: params.threadId } : {}),
+          ...(["completed", "failed"].includes(state) ? { prompt: "" } : {}),
+          updated_at: new Date().toISOString(),
+        })
+        .where("task_id", "=", params.taskId)
+        .execute();
+      if (currentSummary && ampCustomerMessage(result)) {
+        // A human move while Amp was running takes precedence over the handoff.
+        await trx
+          .updateTable("task_board_items")
+          .set({ status: "qa", updated_at: new Date().toISOString() })
+          .where("id", "=", params.taskId)
+          .where("organization_id", "=", params.organizationId)
+          .where("status", "=", "triage")
+          .execute();
+      }
+      // Auxiliary phases preserve ownership and never advance implementation.
+      if (run.phase === "summary" || run.phase === "review") return true;
+      const hasPr =
+        state === "completed" &&
+        (await storage.listPrs(params.taskId, params.organizationId)).length >
+          0;
+      const status =
+        run.phase === "planning"
+          ? "todo"
+          : state === "completed"
+            ? hasPr
+              ? "in_review"
+              : "qa"
+            : state === "running"
+              ? "in_progress"
+              : "todo";
+      await trx
+        .updateTable("task_board_items")
+        .set({ status, updated_at: new Date().toISOString() })
+        .where("id", "=", params.taskId)
+        .where("organization_id", "=", params.organizationId)
+        .where("assignee_id", "=", SUPER_AGENT_ASSIGNEE_ID)
+        .where("status", "in", ["todo", "in_progress"])
+        .execute();
+      return true;
+    });
+  }
+
+  /** Serialize webhook retries before allocating a board key or changing a card. */
+  async upsertWebhookTicket(params: {
+    organizationId: string;
+    externalKey: string;
+    title: string;
+    description: string;
+    virtualMcpId: string;
+    by: string;
+    contextRevision?: string;
+    contextSeparator?: string;
+    sourceVersion?: string;
+    externalUrl?: string;
+  }): Promise<{
+    item: TaskBoardItem;
+    outcome: "created" | "updated" | "unchanged";
+  }> {
+    if (
+      params.sourceVersion !== undefined &&
+      !/^\d{1,30}$/.test(params.sourceVersion)
+    )
+      throw new Error("Invalid source version");
+    return this.inTransaction(async (trx) => {
+      await sql`select pg_advisory_xact_lock(hashtext(${`webhook-ticket:${params.organizationId}:${params.externalKey}`})::bigint)`.execute(
+        trx,
+      );
+      const storage = new TaskBoardStorage(trx);
+      const existing = await trx
+        .selectFrom("task_board_items")
+        .selectAll()
+        .where("organization_id", "=", params.organizationId)
+        .where("external_key", "=", params.externalKey)
+        .forUpdate()
+        .executeTakeFirst();
+
+      if (!existing) {
+        const item = await storage.create({ ...params, status: "triage" });
+        if (params.sourceVersion) {
+          await trx
+            .updateTable("task_board_items")
+            .set({ webhook_source_version: params.sourceVersion })
+            .where("id", "=", item.id)
+            .where("organization_id", "=", params.organizationId)
+            .execute();
+        }
+        if (params.contextRevision) {
+          await trx
+            .updateTable("task_board_items")
+            .set({ webhook_context_revision: params.contextRevision })
+            .where("id", "=", item.id)
+            .execute();
+        }
+        return { item, outcome: "created" };
+      }
+      if (
+        params.sourceVersion &&
+        existing.webhook_source_version &&
+        BigInt(params.sourceVersion) <= BigInt(existing.webhook_source_version)
+      ) {
+        const item = await storage.getById(existing.id, params.organizationId);
+        if (!item) throw new Error("Webhook ticket disappeared");
+        return { item, outcome: "unchanged" };
+      }
+      // Claim before remote reads, even for duplicate payloads. A later webhook
+      // invalidates an earlier lookup without holding a transaction over HTTP.
+      await trx
+        .updateTable("task_board_items")
+        .set({
+          webhook_context_revision: params.contextRevision ?? null,
+          ...(params.sourceVersion
+            ? { webhook_source_version: params.sourceVersion }
+            : {}),
+        })
+        .where("id", "=", existing.id)
+        .execute();
+      const priorContext = params.contextSeparator
+        ? existing.description?.split(params.contextSeparator)[1]
+        : undefined;
+      const description = priorContext
+        ? params.description + params.contextSeparator + priorContext
+        : params.description;
+      if (
+        existing.title === params.title &&
+        existing.description === description
+      ) {
+        const item = await storage.getById(existing.id, params.organizationId);
+        if (!item) throw new Error("Webhook ticket disappeared");
+        return { item, outcome: "unchanged" };
+      }
+
+      // Source state is reference data; it must not rewind local work,
+      // assignments, or a human's project choice.
+      const item = await storage.update(
+        existing.id,
+        params.organizationId,
+        {
+          title: params.title,
+          description,
+        },
+        params.by,
+      );
+      return { item, outcome: "updated" };
+    });
+  }
+
+  async completeWebhookTicketContext(params: {
+    id: string;
+    organizationId: string;
+    revision: string;
+    expectedDescription: string;
+    description: string;
+    by: string;
+  }): Promise<TaskBoardItem | null> {
+    const changed = params.description !== params.expectedDescription;
+    const row = await this.db
+      .updateTable("task_board_items")
+      .set({
+        webhook_context_revision: null,
+        ...(changed
+          ? {
+              description: params.description,
+              updated_at: new Date().toISOString(),
+              updated_by: params.by,
+            }
+          : {}),
+      })
+      .where("id", "=", params.id)
+      .where("organization_id", "=", params.organizationId)
+      .where("webhook_context_revision", "=", params.revision)
+      .where("description", "=", params.expectedDescription)
+      .returning("id")
+      .executeTakeFirst();
+    return row ? this.getById(row.id, params.organizationId) : null;
   }
 
   async update(
@@ -2504,8 +3196,51 @@ export class TaskBoardStorage {
         this.attachThreads(db, items, organizationId),
         this.attachTags(db, items),
         this.attachActivityFields(db, items),
+        this.attachAmpRuns(db, items, organizationId),
       ]),
     );
+  }
+
+  private async attachAmpRuns(
+    db: Kysely<Database>,
+    items: TaskBoardItem[],
+    organizationId: string,
+  ) {
+    const runs = await db
+      .selectFrom("task_board_amp_runs")
+      .select([
+        "task_id",
+        "run_id",
+        "phase",
+        "state",
+        "plan_text",
+        "summary_text",
+        "review_text",
+        "plan_run_id",
+        "approved_by",
+      ])
+      .where("organization_id", "=", organizationId)
+      .where(
+        "task_id",
+        "in",
+        items.map((item) => item.id),
+      )
+      .execute();
+    const byTask = new Map(runs.map((run) => [run.task_id, run]));
+    for (const item of items) {
+      const run = byTask.get(item.id);
+      if (run)
+        item.ampRun = {
+          runId: run.run_id,
+          phase: run.phase,
+          state: run.state,
+          plan: run.plan_text,
+          summary: run.summary_text,
+          review: run.review_text,
+          planRunId: run.plan_run_id,
+          approvedBy: run.approved_by,
+        };
+    }
   }
 
   /**

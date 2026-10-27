@@ -14,7 +14,8 @@ const UserSchema = z.object({
 });
 
 export function githubCliEnabled(): boolean {
-  return getSettings().localMode;
+  const settings = getSettings();
+  return settings.localMode || settings.githubCliEnabled;
 }
 
 function cliError(message: string): GitProviderError {
@@ -24,7 +25,7 @@ function cliError(message: string): GitProviderError {
 /** Read only the selected CLI account, never an ambient automation token. */
 async function readToken(login?: string): Promise<string> {
   if (!githubCliEnabled()) {
-    throw cliError("GitHub CLI connections are only available in local mode.");
+    throw cliError("GitHub CLI connections are not enabled on this server.");
   }
   const env: NodeJS.ProcessEnv = { ...process.env, GH_PROMPT_DISABLED: "1" };
   delete env.GH_TOKEN;

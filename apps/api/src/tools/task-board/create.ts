@@ -1,4 +1,5 @@
 import { resolveTaskRunModel } from "./task-run-harness";
+import { enqueueAmpSummary, usesAmpPlanning } from "./amp-task-run";
 import { LANES, TaskBoardHarnessSchema } from "@decocms/shared/task-board";
 import { z } from "zod";
 import { defineTool } from "@/core/define-tool";
@@ -21,7 +22,10 @@ import {
 import { assertValidAssignee } from "./validate-assignee";
 import { assertValidTagIds } from "./validate-tags";
 import { cardCheckout, resolveCardProject } from "./validate-project";
-import { reactToSuperAgentDelegation } from "@/automations/fire-implementer";
+import {
+  fireImplementer,
+  reactToSuperAgentDelegation,
+} from "@/automations/fire-implementer";
 import { recordTaskActivity } from "./activity";
 import { emitTaskBoardUpdated } from "./run-reactions";
 import {
@@ -157,7 +161,9 @@ export const TASK_BOARD_ITEM_CREATE = defineTool({
 
     const delegatedToSuperAgent = input.assigneeId === SUPER_AGENT_ASSIGNEE_ID;
     const status = delegatedToSuperAgent
-      ? LANES.progress
+      ? usesAmpPlanning(organizationId)
+        ? "todo"
+        : LANES.progress
       : (input.status ?? LANES.intake);
 
     if (input.tagIds?.length) {
@@ -263,12 +269,22 @@ export const TASK_BOARD_ITEM_CREATE = defineTool({
 
     // Broadcast the new card so every open board adds it live, no polling.
     emitTaskBoardUpdated(organizationId, item);
-    await reactToSuperAgentDelegation(ctx, item);
+    if (item.status === "triage") await enqueueAmpSummary(ctx, item);
+    if (
+      usesAmpPlanning(organizationId) &&
+      item.status === "todo" &&
+      !delegatedToSuperAgent
+    ) {
+      await fireImplementer(ctx, item, { userInitiated: true });
+    } else {
+      await reactToSuperAgentDelegation(ctx, item);
+    }
 
     const checkStatus: "off" | "no_match" | "skipped" =
       duplicateCheck?.status ?? "off";
     return {
-      item,
+      item:
+        (await ctx.storage.taskBoard.getById(item.id, organizationId)) ?? item,
       deduplicated: false,
       duplicateCheck: checkStatus,
       duplicateReason:

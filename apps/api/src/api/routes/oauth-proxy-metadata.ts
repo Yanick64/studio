@@ -128,7 +128,7 @@ export function looksLikeOAuthWwwAuthenticate(wwwAuth: string): boolean {
   );
 }
 
-/** Classify a downstream connection error as a 401-style auth error. */
+/** Identify auth failures; a 403 still needs an OAuth challenge before sign-in. */
 export function isAuthError(error: {
   message?: string;
   status?: number;
@@ -138,6 +138,8 @@ export function isAuthError(error: {
   return (
     error.status === 401 ||
     error.code === 401 ||
+    error.status === 403 ||
+    error.code === 403 ||
     (error.message?.includes("401") ?? false) ||
     message.includes("unauthorized") ||
     message.includes("invalid_token") ||

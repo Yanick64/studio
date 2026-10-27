@@ -79,6 +79,92 @@ bun run --cwd=apps/api start
 Use `bun run build:api` when only the server bundle is required. It does not
 stage the web client.
 
+### Amp task worker
+
+The optional Amp worker sends delegated board tasks to Amp Orbs. Configure
+`DECOCMS_AMP_TASKS=true`, `AMP_TASK_ORGANIZATION_ID`, and `AMP_API_KEY` on the
+API and workers. Install a compatible Amp CLI there, or mount it and set
+`AMP_CLI_PATH`. The integration is tested with CLI `0.0.1793073650-g23dd39`.
+Credentials belong to a dedicated Amp account and only the configured Studio
+organization can use them. The flag defaults off.
+
+Link the primary repository and additional repositories in the Studio project.
+Configure the matching Amp team project with access to those repositories and
+the desired model subscription. The worker selects only workspace-owned
+projects and passes the explicit team/project reference to Amp. It never falls
+back to a personal project. Missing or ambiguous team mappings stop dispatch
+with a task comment. Re-runs verify that the saved thread belongs to that team
+project and runs in an Orb before sending another prompt.
+
+This deployment override replaces implementation
+dispatch for the configured organization. Native chats and reviewers retain
+their existing execution configuration.
+
+Migration `261-task-board-amp-runs` stores dispatch claims and Amp thread IDs.
+The `task-board-amp` DBOS queue streams progress into task comments and records
+PR links. Re-runs continue the saved thread and refuse overlapping work.
+After a stream interruption, the worker reads the existing Amp thread rather
+than resubmitting the prompt. An uncertain submission remains blocked until
+the worker can confirm the result. Stopping Studio does not cancel an Orb;
+use the Amp thread to inspect or stop remote work.
+
+Set `DECOCMS_AMP_TASK_PLANNING=true` to require a plan before implementation.
+This separate flag defaults off. Moving a task to Todo starts a planning turn
+in its team Orb. Assignment and re-runs also generate a plan. The planning
+prompt permits inspection only; the task stays in Todo until a person chooses
+**Approve and implement**. Approval names the displayed plan version and queues
+implementation on the same Amp thread. Editing the task, human comments, or
+project repository bindings invalidates that approval candidate. Generate a
+new plan after those edits. Migration `262-task-board-amp-plans` persists the
+plan, content fingerprint and approval author. Existing runs finish under their
+original execution mode.
+
+`DECOCMS_AMP_TASK_SUMMARY=true` generates a short issue summary while a card is
+in Backlog. Orbit intake queues it after fetching the ticket conversation.
+Amp only starts for cards assigned to an active project other than the Orbit
+intake inbox. Inbox projects are identified by their Orbit webhook automation,
+so renaming the inbox does not enable execution. Unassigned cards wait for a
+project; moving a Backlog card to an eligible project queues its summary.
+The summary performs targeted read-only research in the mapped repositories
+before recommending a resolution. It traces the affected behavior or content to
+its source and checks existing CMS fields, settings and supported workflows.
+It distinguishes content/configuration changes from code changes and reports
+missing access or evidence instead of guessing. It cannot authorize
+implementation. Source edits refresh the summary; moving to Todo
+during summarization queues planning after the current turn finishes. Set
+`AMP_TASK_SUMMARY_PROJECT=team/project` to a workspace-owned intake project for
+tickets without repository bindings. Those tickets receive text-only triage.
+When research finds an existing content/configuration solution or usage
+explanation, the summary includes a ready-to-send customer reply with the
+verified solution and next steps. Missing customer information produces a
+clarification message, combined with the solution when both apply. The draft
+uses the ticket's language and a separately copyable text block. Amp does not
+invent admin navigation, permissions, or completed changes. Clear code-change
+requests without a customer-facing answer or missing input omit the draft.
+Studio does not send it to the customer. Refresh a Backlog summary to apply
+these instructions to an existing ticket.
+Completed, current summaries with a customer-message block move Backlog tickets
+to QA for a person to check and send the reply. The assignee stays unchanged.
+Failed or stale summaries and tickets moved out of Backlog by a person do not
+advance. QA here means the response needs human review, not that a content or
+code change has been performed. Ticket details open on an available summary and
+show the next human action above the tabs, including plan approval and review.
+
+`DECOCMS_AMP_TASK_REVIEW=true` reviews linked PRs when a task enters In Review.
+It uses a fresh team Orb, pins each PR's head SHA, executes the approved test
+plan and asks for browser screenshots of UI changes. Evidence stays in private
+Amp attachments, linked from the report. The reviewer reports findings and
+PASS/FAIL/BLOCKED outcomes in Studio and comments on the PR. It does not fix or
+merge code. The task stays In Review for the next human decision. A new head
+or changed task context invalidates the previous review key; the existing PR
+events and review sweep dispatch the next review. Manual review retries use
+the task's **Run review again** button.
+
+Both flags default off. Migration `263-task-board-amp-triage-review` adds summary
+and review persistence. Startup catches up the newest 100 Backlog/In Review
+cards in the configured organization. Existing workflow registrations remain
+available for recovery; new runs use the durable multi-phase workflow.
+
 ## Architecture
 
 Requests enter through `src/index.ts` and the Hono application in

@@ -225,6 +225,31 @@ export const TaskBoardItemSchema = z.object({
   reviewCycleStartedAt: z.string().datetime().nullable(),
   // Agent threads linked to this task (many-to-many), most-recent first.
   threads: z.array(TaskBoardItemThreadSchema),
+  ampRun: z
+    .object({
+      runId: z.string(),
+      phase: z.enum([
+        "legacy",
+        "summary",
+        "planning",
+        "implementation",
+        "review",
+      ]),
+      summary: z.string().nullable(),
+      review: z.string().nullable(),
+      state: z.enum([
+        "queued",
+        "starting",
+        "running",
+        "unknown",
+        "completed",
+        "failed",
+      ]),
+      plan: z.string().nullable(),
+      planRunId: z.string().nullable(),
+      approvedBy: z.string().nullable(),
+    })
+    .optional(),
   // Org tags attached to this task, name ascending.
   tags: z.array(TaskBoardItemTagSchema),
   /** Each reviewer's standing verdict in the current review cycle, in

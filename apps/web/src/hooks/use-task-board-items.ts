@@ -79,10 +79,16 @@ export function useTaskBoardLiveSync(): void {
       queryClient.invalidateQueries({
         queryKey: KEYS.taskBoardActivity(locator, item.id),
       });
+      queryClient.invalidateQueries({
+        queryKey: KEYS.taskBoardComments(locator, item.id),
+      });
     },
     // Stream back after a drop — nothing was buffered, so re-read the list.
     onResync: () => {
       queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({
+        queryKey: KEYS.taskBoardAllComments(locator),
+      });
     },
     // Live deletes: drop the removed card, canceling a stale in-flight refetch first (same race as onUpdate above).
     onDelete: (id) => {
@@ -265,5 +271,11 @@ export function useTaskBoardItemActions() {
     },
   });
 
-  return { create, update, remove, removeMany, link, rerun };
+  const approvePlan = useMutation({
+    mutationFn: (input: ToolInput<"TASK_BOARD_PLAN_APPROVE">) =>
+      studio.call("TASK_BOARD_PLAN_APPROVE", input),
+    onSettled: invalidate,
+  });
+
+  return { create, update, remove, removeMany, link, rerun, approvePlan };
 }

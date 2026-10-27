@@ -1,4 +1,85 @@
 export const taskBoard = {
+  "taskBoard.nextAction.label": "Next action",
+  "taskBoard.nextAction.waitDescription":
+    "Your next step appears here when Amp finishes.",
+  "taskBoard.nextAction.failedTitle": "Check why Amp stopped",
+  "taskBoard.nextAction.failedDescription":
+    "Read the reported problem, resolve any missing information or access, then retry the operation.",
+  "taskBoard.nextAction.viewDetails": "View details",
+  "taskBoard.nextAction.planTitle":
+    "Review and approve the implementation plan",
+  "taskBoard.nextAction.planDescription":
+    "Read the proposed changes and test plan. Choose Approve and implement in the plan tab when this version is ready. If changes are needed, update the ticket and generate a new plan first.",
+  "taskBoard.nextAction.viewPlan": "Review plan",
+  "taskBoard.nextAction.customerTitle": "Check and send the customer message",
+  "taskBoard.nextAction.customerDescription":
+    "Review the customer message and send it by email or through Orbit. Add their response to the conversation before continuing. Studio does not send the message for you.",
+  "taskBoard.nextAction.viewMessage": "View customer message",
+  "taskBoard.nextAction.copyMessage": "Copy customer message",
+  "taskBoard.nextAction.copied": "Copied",
+  "taskBoard.nextAction.copyFailed": "Could not copy the customer message.",
+  "taskBoard.nextAction.customerResponseTitle":
+    "Follow up on the customer's response",
+  "taskBoard.nextAction.customerResponseDescription":
+    "Record the customer's answer or approval in the conversation, then choose the ticket's next status.",
+  "taskBoard.nextAction.openConversation": "Open conversation",
+  "taskBoard.nextAction.summaryTitle":
+    "Review the summary and choose the next step",
+  "taskBoard.nextAction.summaryDescription":
+    "Check the findings and outstanding questions. If the scope is clear and implementation is needed, move the ticket to Todo to generate a plan.",
+  "taskBoard.nextAction.viewSummary": "Review summary",
+  "taskBoard.nextAction.reviewTitle": "Assess the review and test results",
+  "taskBoard.nextAction.reviewDescription":
+    "Check findings, failed or blocked tests, and screenshots. Decide whether changes are needed or the ticket can move to QA.",
+  "taskBoard.nextAction.viewReview": "View review results",
+  "taskBoard.nextAction.outcomeTitle": "Check the execution outcome",
+  "taskBoard.nextAction.outcomeDescription":
+    "Read Amp's result in the conversation. Check what was completed and any blockers before testing or handing the result to the customer.",
+  "taskBoard.nextAction.viewOutcome": "View outcome",
+  "taskBoard.taskDialog.contentTabs": "Ticket content",
+  "taskBoard.taskDialog.originalTab": "Original message",
+  "taskBoard.taskDialog.reviewTab": "Review",
+  "taskBoard.ampSummary.empty":
+    "No summary yet. Amp summarizes Backlog tickets assigned to an active project outside the Orbit inbox.",
+  "taskBoard.ampPlan.empty":
+    "No implementation plan yet. Move the ticket to Todo to request a plan. Implementation starts after you approve it.",
+  "taskBoard.ampReview.empty":
+    "No review yet. Amp reviews linked pull requests when the ticket is In Review.",
+  "taskBoard.ampStatus.queued": "Amp queued",
+  "taskBoard.ampStatus.starting": "Amp is starting",
+  "taskBoard.ampStatus.reconnecting": "Reconnecting to Amp",
+  "taskBoard.ampStatus.summarizing": "Amp is summarizing",
+  "taskBoard.ampStatus.planning": "Amp is planning",
+  "taskBoard.ampStatus.implementing": "Amp is implementing",
+  "taskBoard.ampStatus.reviewing": "Amp is reviewing and testing",
+  "taskBoard.ampSummary.title": "Issue summary",
+  "taskBoard.ampSummary.running":
+    "Amp is reading the ticket and checking repository context where needed.",
+  "taskBoard.ampSummary.failed":
+    "The summary could not finish. See the activity for details.",
+  "taskBoard.ampSummary.refresh": "Refresh summary",
+  "taskBoard.ampReview.title": "PR review and test results",
+  "taskBoard.ampReview.running":
+    "Amp is reviewing the changes, executing the test plan and capturing UI evidence.",
+  "taskBoard.ampReview.completed":
+    "Review report ready. Check the findings, test outcomes and screenshots before deciding what comes next.",
+  "taskBoard.ampReview.failed":
+    "The review could not finish. See the activity for details, then retry.",
+  "taskBoard.ampReview.retry": "Run review again",
+  "taskBoard.ampPlan.title": "Implementation plan",
+  "taskBoard.ampPlan.planning":
+    "Amp is inspecting the repositories and preparing a plan. The task stays in Todo.",
+  "taskBoard.ampPlan.awaitingApproval":
+    "Review this plan before implementation. If the task has changed, generate a new plan first.",
+  "taskBoard.ampPlan.approve": "Approve and implement",
+  "taskBoard.ampPlan.regenerate": "Generate a new plan",
+  "taskBoard.ampPlan.implementing": "Plan approved. Amp is implementing it.",
+  "taskBoard.ampPlan.completed":
+    "Implementation completed. See the activity for results and checks.",
+  "taskBoard.ampPlan.failed":
+    "Amp stopped. See the activity for the reason, then generate a new plan.",
+  "taskBoard.ampPlan.reconnecting":
+    "Studio is reconnecting to the existing Amp run. See the Amp link in the activity.",
   "taskBoard.feed.today": "Today",
   "taskBoard.feed.yesterday": "Yesterday",
   "taskBoard.feed.eventBlocked": "Needs your input",

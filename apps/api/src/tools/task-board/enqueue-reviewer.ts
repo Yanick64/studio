@@ -1,4 +1,5 @@
 import type { StudioContext } from "@/core/studio-context";
+import { enqueueAmpReview, usesAmpReview } from "./amp-task-run";
 import type { TaskBoardItem } from "@/storage/types";
 import {
   enabledReviewerKinds,
@@ -135,6 +136,9 @@ export async function enqueueEnabledReviewers(
     kinds?: ReviewerKind[];
   },
 ): Promise<ReviewerKind[]> {
+  if (usesAmpReview(task.organizationId)) {
+    return (await enqueueAmpReview(ctx, task)) ? ["reviewer"] : [];
+  }
   const settings = await ctx.storage.organizationSettings.get(
     task.organizationId,
   );

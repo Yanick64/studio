@@ -471,6 +471,29 @@ export interface StudioToolIO {
         createdAt: string;
         updatedBy: string;
         updatedAt: string;
+        ampRun?:
+          | {
+              runId: string;
+              phase:
+                | "legacy"
+                | "summary"
+                | "planning"
+                | "implementation"
+                | "review";
+              summary: string | null;
+              review: string | null;
+              state:
+                | "unknown"
+                | "failed"
+                | "completed"
+                | "queued"
+                | "starting"
+                | "running";
+              plan: string | null;
+              planRunId: string | null;
+              approvedBy: string | null;
+            }
+          | undefined;
       };
       deduplicated: boolean;
       duplicateCheck: "off" | "matched" | "no_match" | "skipped";
@@ -552,6 +575,29 @@ export interface StudioToolIO {
         createdAt: string;
         updatedBy: string;
         updatedAt: string;
+        ampRun?:
+          | {
+              runId: string;
+              phase:
+                | "legacy"
+                | "summary"
+                | "planning"
+                | "implementation"
+                | "review";
+              summary: string | null;
+              review: string | null;
+              state:
+                | "unknown"
+                | "failed"
+                | "completed"
+                | "queued"
+                | "starting"
+                | "running";
+              plan: string | null;
+              planRunId: string | null;
+              approvedBy: string | null;
+            }
+          | undefined;
       }[];
       repos: string[];
       columns: { key: string; title: string; position: number }[];
@@ -663,6 +709,29 @@ export interface StudioToolIO {
         createdAt: string;
         updatedBy: string;
         updatedAt: string;
+        ampRun?:
+          | {
+              runId: string;
+              phase:
+                | "legacy"
+                | "summary"
+                | "planning"
+                | "implementation"
+                | "review";
+              summary: string | null;
+              review: string | null;
+              state:
+                | "unknown"
+                | "failed"
+                | "completed"
+                | "queued"
+                | "starting"
+                | "running";
+              plan: string | null;
+              planRunId: string | null;
+              approvedBy: string | null;
+            }
+          | undefined;
       };
     };
   };
@@ -725,6 +794,107 @@ export interface StudioToolIO {
   TASK_BOARD_ITEM_RERUN: {
     input: { id: string };
     output: { status: string; supersededThreadIds: string[] };
+  };
+  TASK_BOARD_PLAN_APPROVE: {
+    input: { id: string; planRunId: string };
+    output: {
+      item: {
+        harnessId: "claude-code" | "codex";
+        parentId: string | null;
+        isEpic: boolean;
+        id: string;
+        organizationId: string;
+        title: string;
+        description: string | null;
+        status:
+          | "done"
+          | "triage"
+          | "todo"
+          | "in_progress"
+          | "in_review"
+          | "qa"
+          | "customer_approval"
+          | "ready_for_deployment"
+          | "post_deploy_validation"
+          | "archived";
+        priority: "none" | "low" | "medium" | "high" | "urgent";
+        type: "bug" | "feature" | "chore" | "spike" | "security";
+        assigneeId: string | null;
+        assignedBy: string | null;
+        repo: string | null;
+        repositoryId: string | null;
+        virtualMcpId: string | null;
+        sprintId: string | null;
+        dueDate: string | null;
+        sortOrder: number;
+        keySeq: number | null;
+        externalUrl: string | null;
+        previewRoutes: string[];
+        source: "jira" | null;
+        retryAttempts: number;
+        reviewCycleStartedAt: string | null;
+        threads: {
+          threadId: string;
+          virtualMcpId: string | null;
+          status:
+            | "in_progress"
+            | "requires_action"
+            | "failed"
+            | "completed"
+            | "expired"
+            | null;
+          title: string | null;
+          lastMessage: string | null;
+          hasPreview: boolean;
+          failureKind: string | null;
+          hasMessages: boolean;
+          costUsd: number | null;
+          costProvider: string | null;
+          createdAt: string;
+          lastActiveAt: string;
+        }[];
+        tags: {
+          id: string;
+          name: string;
+          color: string | null;
+          createdBy: string;
+          createdAt: string;
+        }[];
+        reviewVerdicts: {
+          reviewer: "reviewer";
+          verdict: "approved" | "changes_requested";
+          verified: boolean;
+        }[];
+        statusSince: string | null;
+        createdBy: string;
+        createdAt: string;
+        updatedBy: string;
+        updatedAt: string;
+        ampRun?:
+          | {
+              runId: string;
+              phase:
+                | "legacy"
+                | "summary"
+                | "planning"
+                | "implementation"
+                | "review";
+              summary: string | null;
+              review: string | null;
+              state:
+                | "unknown"
+                | "failed"
+                | "completed"
+                | "queued"
+                | "starting"
+                | "running";
+              plan: string | null;
+              planRunId: string | null;
+              approvedBy: string | null;
+            }
+          | undefined;
+      };
+    };
   };
   TASK_BOARD_RUN_REVIEWER: {
     input: { id: string };
@@ -3698,6 +3868,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -3708,8 +3880,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -3759,6 +3929,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -3769,8 +3941,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -3778,6 +3948,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -3788,8 +3960,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -3805,6 +3975,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -3989,6 +4171,8 @@ export interface StudioToolIO {
                             | undefined;
                           sidebarViews?:
                             | (
+                                | "automations"
+                                | "experiments"
                                 | "overview"
                                 | "reports"
                                 | "board"
@@ -3999,8 +4183,6 @@ export interface StudioToolIO {
                                 | "e2e"
                                 | "analytics"
                                 | "cdn"
-                                | "automations"
-                                | "experiments"
                                 | "calendar"
                               )[]
                             | null
@@ -4050,6 +4232,8 @@ export interface StudioToolIO {
                 | undefined;
               sidebarViews?:
                 | (
+                    | "automations"
+                    | "experiments"
                     | "overview"
                     | "reports"
                     | "board"
@@ -4060,8 +4244,6 @@ export interface StudioToolIO {
                     | "e2e"
                     | "analytics"
                     | "cdn"
-                    | "automations"
-                    | "experiments"
                     | "calendar"
                   )[]
                 | null
@@ -4069,6 +4251,8 @@ export interface StudioToolIO {
               sidebarViewsVersion?: 1 | undefined;
               sidebarViewsSeen?:
                 | (
+                    | "automations"
+                    | "experiments"
                     | "overview"
                     | "reports"
                     | "board"
@@ -4079,8 +4263,6 @@ export interface StudioToolIO {
                     | "e2e"
                     | "analytics"
                     | "cdn"
-                    | "automations"
-                    | "experiments"
                     | "calendar"
                   )[]
                 | null
@@ -4096,6 +4278,18 @@ export interface StudioToolIO {
                   }
                 | null
                 | undefined;
+              additionalRepositories?:
+                | {
+                    url: string;
+                    owner: string;
+                    name: string;
+                    installationId?: number | undefined;
+                    connectionId?: string | undefined;
+                    repositoryId?: string | undefined;
+                  }[]
+                | null
+                | undefined;
+              orbitClientIds?: string[] | null | undefined;
               runtime?:
                 | {
                     selected?: string | null | undefined;
@@ -4202,6 +4396,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -4212,8 +4408,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -4263,6 +4457,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4273,8 +4469,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4282,6 +4476,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4292,8 +4488,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4309,6 +4503,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -4454,6 +4660,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -4464,8 +4672,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -4515,6 +4721,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4525,8 +4733,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4534,6 +4740,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4544,8 +4752,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4561,6 +4767,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -4697,6 +4915,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -4707,8 +4927,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -4758,6 +4976,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4768,8 +4988,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4777,6 +4995,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -4787,8 +5007,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -4804,6 +5022,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -4941,6 +5171,8 @@ export interface StudioToolIO {
                             | undefined;
                           sidebarViews?:
                             | (
+                                | "automations"
+                                | "experiments"
                                 | "overview"
                                 | "reports"
                                 | "board"
@@ -4951,8 +5183,6 @@ export interface StudioToolIO {
                                 | "e2e"
                                 | "analytics"
                                 | "cdn"
-                                | "automations"
-                                | "experiments"
                                 | "calendar"
                               )[]
                             | null
@@ -5002,6 +5232,8 @@ export interface StudioToolIO {
                 | undefined;
               sidebarViews?:
                 | (
+                    | "automations"
+                    | "experiments"
                     | "overview"
                     | "reports"
                     | "board"
@@ -5012,8 +5244,6 @@ export interface StudioToolIO {
                     | "e2e"
                     | "analytics"
                     | "cdn"
-                    | "automations"
-                    | "experiments"
                     | "calendar"
                   )[]
                 | null
@@ -5021,6 +5251,8 @@ export interface StudioToolIO {
               sidebarViewsVersion?: 1 | undefined;
               sidebarViewsSeen?:
                 | (
+                    | "automations"
+                    | "experiments"
                     | "overview"
                     | "reports"
                     | "board"
@@ -5031,8 +5263,6 @@ export interface StudioToolIO {
                     | "e2e"
                     | "analytics"
                     | "cdn"
-                    | "automations"
-                    | "experiments"
                     | "calendar"
                   )[]
                 | null
@@ -5048,6 +5278,18 @@ export interface StudioToolIO {
                   }
                 | null
                 | undefined;
+              additionalRepositories?:
+                | {
+                    url: string;
+                    owner: string;
+                    name: string;
+                    installationId?: number | undefined;
+                    connectionId?: string | undefined;
+                    repositoryId?: string | undefined;
+                  }[]
+                | null
+                | undefined;
+              orbitClientIds?: string[] | null | undefined;
               runtime?:
                 | {
                     selected?: string | null | undefined;
@@ -5162,6 +5404,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -5172,8 +5416,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -5223,6 +5465,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -5233,8 +5477,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -5242,6 +5484,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -5252,8 +5496,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -5269,6 +5511,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -5403,6 +5657,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -5413,8 +5669,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -5464,6 +5718,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -5474,8 +5730,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -5483,6 +5737,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -5493,8 +5749,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -5510,6 +5764,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;
@@ -6253,7 +6519,7 @@ export interface StudioToolIO {
         | "failed"
         | "completed"
         | undefined;
-      kind?: "task" | "chat" | "automation" | undefined;
+      kind?: "automation" | "task" | "chat" | undefined;
       limit?: number | undefined;
     };
     output: {
@@ -6265,7 +6531,7 @@ export interface StudioToolIO {
         orgSlug: string;
         title: string;
         status: string;
-        kind: "task" | "chat" | "automation";
+        kind: "automation" | "task" | "chat";
         failureKind: string | null;
         failureReason: string | null;
         lastError: string | null;
@@ -6570,7 +6836,7 @@ export interface StudioToolIO {
         site: string;
         key: string;
         name: string;
-        status: "draft" | "running" | "paused" | "ended";
+        status: "running" | "draft" | "paused" | "ended";
         goals: string[];
         variants: {
           id: string;
@@ -6597,7 +6863,7 @@ export interface StudioToolIO {
         site: string;
         key: string;
         name: string;
-        status: "draft" | "running" | "paused" | "ended";
+        status: "running" | "draft" | "paused" | "ended";
         goals: string[];
         variants: {
           id: string;
@@ -6637,7 +6903,7 @@ export interface StudioToolIO {
         site: string;
         key: string;
         name: string;
-        status: "draft" | "running" | "paused" | "ended";
+        status: "running" | "draft" | "paused" | "ended";
         goals: string[];
         variants: {
           id: string;
@@ -6703,7 +6969,7 @@ export interface StudioToolIO {
       site: string;
       key: string;
       name?: string | undefined;
-      status?: "draft" | "running" | "paused" | "ended" | undefined;
+      status?: "running" | "draft" | "paused" | "ended" | undefined;
       goals?: string[] | undefined;
       variants?:
         | {
@@ -6721,7 +6987,7 @@ export interface StudioToolIO {
         site: string;
         key: string;
         name: string;
-        status: "draft" | "running" | "paused" | "ended";
+        status: "running" | "draft" | "paused" | "ended";
         goals: string[];
         variants: {
           id: string;
@@ -7060,6 +7326,8 @@ export interface StudioToolIO {
                       cms?: "off" | "manual" | "on" | "auto" | null | undefined;
                       sidebarViews?:
                         | (
+                            | "automations"
+                            | "experiments"
                             | "overview"
                             | "reports"
                             | "board"
@@ -7070,8 +7338,6 @@ export interface StudioToolIO {
                             | "e2e"
                             | "analytics"
                             | "cdn"
-                            | "automations"
-                            | "experiments"
                             | "calendar"
                           )[]
                         | null
@@ -7121,6 +7387,8 @@ export interface StudioToolIO {
             | undefined;
           sidebarViews?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -7131,8 +7399,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -7140,6 +7406,8 @@ export interface StudioToolIO {
           sidebarViewsVersion?: 1 | undefined;
           sidebarViewsSeen?:
             | (
+                | "automations"
+                | "experiments"
                 | "overview"
                 | "reports"
                 | "board"
@@ -7150,8 +7418,6 @@ export interface StudioToolIO {
                 | "e2e"
                 | "analytics"
                 | "cdn"
-                | "automations"
-                | "experiments"
                 | "calendar"
               )[]
             | null
@@ -7167,6 +7433,18 @@ export interface StudioToolIO {
               }
             | null
             | undefined;
+          additionalRepositories?:
+            | {
+                url: string;
+                owner: string;
+                name: string;
+                installationId?: number | undefined;
+                connectionId?: string | undefined;
+                repositoryId?: string | undefined;
+              }[]
+            | null
+            | undefined;
+          orbitClientIds?: string[] | null | undefined;
           runtime?:
             | {
                 selected?: string | null | undefined;

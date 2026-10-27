@@ -71,6 +71,7 @@ import { ConnectionItem, ConnectionItemSkeleton } from "./connection-item";
 import { ProjectViewsSection } from "./settings/views-section";
 import { useProjectViews } from "./settings/use-project-views";
 import { ProjectIdentity } from "./settings/project-identity";
+import { OrbitRoutingSettings } from "./settings/orbit-routing";
 import { ProjectSettingsTabs } from "./settings/settings-tabs";
 import {
   SettingsCard,
@@ -1035,6 +1036,13 @@ function VirtualMcpDetailViewWithData({
                     </span>
                   </div>
                 </div>
+              )}
+              {showGeneral && (
+                <OrbitRoutingSettings
+                  key={virtualMcp.id}
+                  form={form}
+                  onCommit={flushAndSave}
+                />
               )}
               {section === "connections" && (
                 <section className="flex flex-col gap-3">

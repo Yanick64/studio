@@ -1,4 +1,5 @@
 import type { StudioContext } from "@/core/studio-context";
+import { enqueueAmpTask, usesAmpTasks } from "./amp-task-run";
 import type { TaskBoardItem } from "@/storage/types";
 import { LANES, outstandingReviewFeedback } from "@decocms/shared/task-board";
 import {
@@ -169,6 +170,7 @@ export async function enqueueSuperAgentForTask(
   task: TaskBoardItem,
   opts?: SuperAgentPromptOpts,
 ): Promise<void> {
+  if (usesAmpTasks(task.organizationId)) return enqueueAmpTask(ctx, task, opts);
   // Quota claim at dispatch — the funnel every FRESH execution shares
   // (update flip, import auto-delegation, review/conflict re-runs). A stall
   // nudge re-prompts an existing thread directly (stall-recovery.ts) and

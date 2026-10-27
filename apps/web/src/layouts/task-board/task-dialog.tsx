@@ -1,4 +1,14 @@
 import type { ReactNode } from "react";
+import { AmpPlan } from "./amp-plan";
+import { AmpReview } from "./amp-review";
+import { AmpNextAction } from "./amp-next-action";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  TabsContent,
+} from "@decocms/ui/components/tabs.tsx";
+import { AmpSummary } from "./amp-summary";
 import {
   ChildrenSection,
   ParentProperty,
@@ -440,6 +450,7 @@ interface TaskEditorProps {
    * own write, not part of the autosave: a sprint completed while the card is
    * open moves it, and a later edit must not move it back. */
   onSetSprint?: (sprintId: string | null) => void;
+  onStatusChange?: (status: TaskBoardItemStatus) => void;
   onSubmit: (input: {
     title: string;
     description: string | null;
@@ -490,6 +501,7 @@ function TaskBoardItemEditor({
   defaultProject,
   defaultSprintId,
   onSetSprint,
+  onStatusChange,
   onSubmit,
   onDelete,
   onClone,
@@ -539,13 +551,13 @@ function TaskBoardItemEditor({
   const {
     title,
     description,
-    status,
     priority,
     assigneeId,
     repo,
     virtualMcpId,
     dueDate,
   } = form;
+  const status = item?.status ?? form.status;
   /**
    * The bucket this card's repository belongs to, so the control shows the
    * PROJECT — its avatar and its name — rather than the string underneath.
@@ -566,6 +578,10 @@ function TaskBoardItemEditor({
   const tagIds = form.tagIds;
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [editingPost, setEditingPost] = useState(!item);
+  const [selectedContentTab, setContentTab] = useState<string | null>(null);
+  const contentTab =
+    selectedContentTab ?? (item?.ampRun?.summary ? "summary" : "original");
+  const activityRef = useRef<HTMLDivElement>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [descriptionOverflows, setDescriptionOverflows] = useState(false);
   const collapseDescription = descriptionOverflows && !descriptionExpanded;
@@ -1013,6 +1029,7 @@ function TaskBoardItemEditor({
                       className="ml-auto"
                       onClick={() => {
                         flush();
+                        setContentTab("original");
                         setEditingPost((value) => !value);
                       }}
                     >
@@ -1092,83 +1109,164 @@ function TaskBoardItemEditor({
               )}
 
               <div className="flex flex-col">
-                <div className="flex flex-col py-6">
-                  <div
-                    // Clip only while folded: the image node's remove button is
-                    // absolute and reaches outside a 1px image's box, so a
-                    // permanent clip puts it out of reach.
-                    className={cn(
-                      "relative",
-                      collapseDescription && "overflow-hidden",
-                    )}
-                    style={
-                      collapseDescription
-                        ? { maxHeight: DESCRIPTION_MAX_HEIGHT }
-                        : undefined
-                    }
-                    // Expand before editing: no caret under the fold.
-                    onFocusCapture={() => setDescriptionExpanded(true)}
-                    onBlurCapture={flush}
+                {item && (
+                  <AmpNextAction
+                    item={item}
+                    onOpenTab={(tab) => {
+                      flush();
+                      if (tab === "activity")
+                        activityRef.current?.scrollIntoView({ block: "start" });
+                      else setContentTab(tab);
+                    }}
+                  />
+                )}
+                <Tabs
+                  value={contentTab}
+                  onValueChange={(value) => {
+                    flush();
+                    setContentTab(value);
+                  }}
+                  className="min-w-0"
+                >
+                  {item && (
+                    <div className="overflow-x-auto">
+                      <TabsList
+                        variant="underline"
+                        className="w-max min-w-full"
+                        aria-label={t("taskBoard.taskDialog.contentTabs")}
+                      >
+                        <TabsTrigger variant="underline" value="original">
+                          {t("taskBoard.taskDialog.originalTab")}
+                        </TabsTrigger>
+                        <TabsTrigger variant="underline" value="summary">
+                          {t("taskBoard.ampSummary.title")}
+                        </TabsTrigger>
+                        <TabsTrigger variant="underline" value="plan">
+                          {t("taskBoard.ampPlan.title")}
+                        </TabsTrigger>
+                        <TabsTrigger variant="underline" value="review">
+                          {t("taskBoard.taskDialog.reviewTab")}
+                        </TabsTrigger>
+                      </TabsList>
+                    </div>
+                  )}
+                  <TabsContent
+                    value="original"
+                    forceMount
+                    className="data-[state=inactive]:hidden"
                   >
-                    <div
-                      ref={measureDescription}
-                      data-testid="task-description"
-                    >
-                      {/* Markdown in, markdown out — the value also becomes
+                    <div className="flex flex-col py-6">
+                      <div
+                        // Clip only while folded: the image node's remove button is
+                        // absolute and reaches outside a 1px image's box, so a
+                        // permanent clip puts it out of reach.
+                        className={cn(
+                          "relative",
+                          collapseDescription && "overflow-hidden",
+                        )}
+                        style={
+                          collapseDescription
+                            ? { maxHeight: DESCRIPTION_MAX_HEIGHT }
+                            : undefined
+                        }
+                        // Expand before editing: no caret under the fold.
+                        onFocusCapture={() => setDescriptionExpanded(true)}
+                        onBlurCapture={flush}
+                      >
+                        <div
+                          ref={measureDescription}
+                          data-testid="task-description"
+                        >
+                          {/* Markdown in, markdown out — the value also becomes
                         prompt context for the agent, and plain-text
                         descriptions written before this editor existed still
                         parse as-is. */}
-                      {item && !editingPost ? (
-                        <MemoizedMarkdown
-                          id={`task-post-${item.id}`}
-                          text={description}
-                        />
-                      ) : (
-                        <MarkdownEditor
-                          defaultValue={description}
-                          onChange={(next) =>
-                            patch({ description: next }, true)
-                          }
-                          placeholder={t(
-                            "taskBoard.taskDialog.descriptionPlaceholder",
+                          {item && !editingPost ? (
+                            <MemoizedMarkdown
+                              id={`task-post-${item.id}`}
+                              text={description}
+                            />
+                          ) : (
+                            <MarkdownEditor
+                              defaultValue={description}
+                              onChange={(next) =>
+                                patch({ description: next }, true)
+                              }
+                              placeholder={t(
+                                "taskBoard.taskDialog.descriptionPlaceholder",
+                              )}
+                              editable={!contentLocked}
+                            />
                           )}
-                          editable={!contentLocked}
-                        />
+                        </div>
+                        {collapseDescription && (
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent"
+                          />
+                        )}
+                      </div>
+                      {descriptionOverflows && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="mt-2 w-fit text-muted-foreground hover:text-foreground"
+                          onClick={() =>
+                            setDescriptionExpanded((open) => !open)
+                          }
+                        >
+                          <ChevronDown
+                            size={14}
+                            className={cn(
+                              "transition-transform",
+                              descriptionExpanded && "rotate-180",
+                            )}
+                          />
+                          {t(
+                            descriptionExpanded
+                              ? "taskBoard.taskDialog.showLess"
+                              : "taskBoard.taskDialog.showMore",
+                          )}
+                        </Button>
                       )}
                     </div>
-                    {collapseDescription && (
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-background to-transparent"
+
+                    {item && <ParentSection item={item} />}
+                    {item && <ChildrenSection item={item} />}
+                  </TabsContent>
+                  {item && (
+                    <TabsContent value="summary">
+                      <AmpSummary item={item} />
+                    </TabsContent>
+                  )}
+                  <TabsContent value="plan">
+                    {item && (
+                      <AmpPlan
+                        item={item}
+                        disabled={
+                          !!isSaving ||
+                          title.trim() !== item.title ||
+                          (description.trim() || null) !== item.description ||
+                          form.virtualMcpId !== item.virtualMcpId
+                        }
                       />
                     )}
-                  </div>
-                  {descriptionOverflows && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 w-fit text-muted-foreground hover:text-foreground"
-                      onClick={() => setDescriptionExpanded((open) => !open)}
-                    >
-                      <ChevronDown
-                        size={14}
-                        className={cn(
-                          "transition-transform",
-                          descriptionExpanded && "rotate-180",
-                        )}
+                  </TabsContent>
+                  <TabsContent value="review">
+                    {item && (
+                      <AmpReview
+                        item={item}
+                        disabled={
+                          !!isSaving ||
+                          title.trim() !== item.title ||
+                          (description.trim() || null) !== item.description ||
+                          form.virtualMcpId !== item.virtualMcpId
+                        }
                       />
-                      {t(
-                        descriptionExpanded
-                          ? "taskBoard.taskDialog.showLess"
-                          : "taskBoard.taskDialog.showMore",
-                      )}
-                    </Button>
-                  )}
-                </div>
-
-                {item && <ParentSection item={item} />}
-                {item && <ChildrenSection item={item} />}
+                    )}
+                  </TabsContent>
+                </Tabs>
 
                 {/* Separates the task itself from the record of it (links,
                   activity). Edit mode only — a new task has neither. */}
@@ -1179,7 +1277,7 @@ function TaskBoardItemEditor({
                 )}
 
                 {item && (
-                  <div className="flex flex-col gap-8">
+                  <div ref={activityRef} className="flex flex-col gap-8">
                     <ActivitySection
                       item={item}
                       members={members}
@@ -1226,7 +1324,12 @@ function TaskBoardItemEditor({
                     return (
                       <DropdownMenuItem
                         key={s}
-                        onSelect={() => patch({ status: s })}
+                        onSelect={() => {
+                          if (item) {
+                            flush();
+                            onStatusChange?.(s);
+                          } else patch({ status: s });
+                        }}
                         className="gap-2"
                       >
                         <Icon size={16} className={visual.iconClassName} />

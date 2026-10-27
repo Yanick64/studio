@@ -90,12 +90,18 @@ async function checkOriginSupportsOAuth(
       }),
     });
 
-    // If we get a 401 with WWW-Authenticate, the server supports OAuth
-    if (response.status === 401) {
+    // Some MCP servers send their OAuth challenge with 403 instead of 401.
+    if (response.status === 401 || response.status === 403) {
       const wwwAuth = response.headers.get("WWW-Authenticate");
       if (wwwAuth && looksLikeOAuthWwwAuthenticate(wwwAuth)) {
         await drainDiscardedBody(response);
         return wwwAuth;
+      }
+
+      // A bare 403 is a permission denial, not evidence of missing credentials.
+      if (response.status === 403) {
+        await drainDiscardedBody(response);
+        return null;
       }
 
       // Fallback: Check if server has OAuth metadata endpoints even without WWW-Authenticate.
@@ -281,11 +287,11 @@ export interface HandleAuthErrorOptions {
 }
 
 /**
- * Handles 401 auth errors from MCP origin servers.
+ * Handles authentication and permission failures from MCP origin servers.
  *
  * Checks if the origin server supports OAuth by looking for WWW-Authenticate header.
  * - If origin supports OAuth: returns 401 with WWW-Authenticate pointing to our proxy
- * - If origin doesn't support OAuth: returns plain 401 with JSON error
+ * - Without an OAuth challenge: preserves a 403, or returns a plain 401
  * - If not an auth error: returns null (caller should handle)
  */
 export async function handleAuthError({
@@ -317,6 +323,13 @@ export async function handleAuthError({
         }),
       },
     });
+  }
+
+  if (error.status === 403 || error.code === 403) {
+    return Response.json(
+      { error: "forbidden", message: "Upstream server denied access" },
+      { status: 403 },
+    );
   }
 
   return new Response(

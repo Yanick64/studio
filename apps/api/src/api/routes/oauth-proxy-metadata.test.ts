@@ -158,6 +158,13 @@ describe("isAuthError", () => {
     expect(isAuthError({ status: 401 })).toBe(true);
     expect(isAuthError({ code: 401 })).toBe(true);
   });
+  test("recognizes numeric 403 failures for OAuth challenge probing", () => {
+    expect(isAuthError({ status: 403 })).toBe(true);
+    expect(isAuthError({ code: 403 })).toBe(true);
+    expect(isAuthError({ message: "Forbidden operation on record 403" })).toBe(
+      false,
+    );
+  });
   test("true on auth-flavored messages", () => {
     expect(isAuthError({ message: "HTTP 401 Unauthorized" })).toBe(true);
     expect(isAuthError({ message: "invalid_token" })).toBe(true);

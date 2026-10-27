@@ -144,7 +144,7 @@ export const createGitProviderRoutes = () => {
 
   app.post("/git-providers/github/cli/connect", async (c) => {
     if (!githubCliEnabled())
-      return c.json({ error: "GitHub CLI requires local mode" }, 403);
+      return c.json({ error: "GitHub CLI is not enabled" }, 403);
     let address: string | undefined;
     try {
       address = getConnInfo(c).remote.address;

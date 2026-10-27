@@ -12,6 +12,7 @@ describe("DBOS worker queue selection", () => {
     expect(runQueues).toBeDefined();
     for (const queue of [
       "AUTOMATIONS_QUEUE",
+      "AMP_TASKS_QUEUE",
       "THREAD_GATE_QUEUE",
       "HOSTED_HARNESS_QUEUE",
       "BACKGROUND_TOOLS_QUEUE",

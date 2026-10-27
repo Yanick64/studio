@@ -115,6 +115,8 @@ export const KEYS = {
   // A task's comment threads
   taskBoardComments: (locator: ProjectLocator, itemId: string) =>
     [locator, "task-board-comments", itemId] as const,
+  taskBoardAllComments: (locator: ProjectLocator) =>
+    [locator, "task-board-comments"] as const,
 
   // Public report for a domain; `lang` in the key so a language switch refetches.
   report: (domain: string, lang?: string) =>

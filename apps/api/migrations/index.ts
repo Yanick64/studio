@@ -1,3 +1,7 @@
+import * as migration260webhookticketcontext from "./260-webhook-ticket-context";
+import * as migration261taskboardampruns from "./261-task-board-amp-runs";
+import * as migration262taskboardampplans from "./262-task-board-amp-plans";
+import * as migration263taskboardamptriagereview from "./263-task-board-amp-triage-review";
 import * as migration256taskboardharness from "./256-task-board-harness";
 import * as migration257taskboarditemhierarchy from "./257-task-board-item-hierarchy";
 import * as migration259repositorymonitordeploys from "./259-repository-monitor-deploys";
@@ -556,6 +560,10 @@ const migrations: Record<string, Migration> = {
   "256-task-board-harness": migration256taskboardharness,
   "257-task-board-item-hierarchy": migration257taskboarditemhierarchy,
   "259-repository-monitor-deploys": migration259repositorymonitordeploys,
+  "260-webhook-ticket-context": migration260webhookticketcontext,
+  "261-task-board-amp-runs": migration261taskboardampruns,
+  "262-task-board-amp-plans": migration262taskboardampplans,
+  "263-task-board-amp-triage-review": migration263taskboardamptriagereview,
 };
 
 export default migrations;

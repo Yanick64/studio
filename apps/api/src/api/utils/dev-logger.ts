@@ -48,6 +48,13 @@ const sanitizeForLog = (str: string): string => {
   ); // Remove other control characters
 };
 
+export function logRequestPath(path: string): string {
+  return sanitizeForLog(path).replace(
+    /^(\/api\/[^/]+\/webhooks\/[^/]+)\/.*$/,
+    "$1/[redacted]",
+  );
+}
+
 export function devLogger() {
   return async (c: Context, next: Next) => {
     const start = Date.now();
@@ -104,7 +111,7 @@ export function devLogger() {
     }
 
     // Format path - shorten connection IDs (sanitize path for safety)
-    let displayPath = sanitizeForLog(path);
+    let displayPath = logRequestPath(path);
     if (path.startsWith("/mcp/conn_")) {
       const connId = path.split("/")[2] ?? "";
       displayPath = `/mcp/${colors.mcp}${sanitizeForLog(connId.slice(0, 12))}…${colors.reset}`;

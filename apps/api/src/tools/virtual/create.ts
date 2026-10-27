@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import { authorizeOrbitRouting } from "./authorize-orbit-routing";
 import { defineTool } from "../../core/define-tool";
 import {
   getUserId,
@@ -133,6 +134,12 @@ export const COLLECTION_VIRTUAL_MCP_CREATE = defineTool({
     // `prompts` is seeded to org-fs after creation, not stored on the agent row.
     const { prompts, metadata: rawMetadata, ...createData } = input.data;
     const metadata = stripServerManagedMetadata(rawMetadata);
+    if (
+      rawMetadata?.orbitClientIds?.length ||
+      rawMetadata?.emailRoutingRules?.length ||
+      rawMetadata?.sentryProjects?.length
+    )
+      await authorizeOrbitRouting(ctx);
 
     if (createData.connections.length > 0) {
       await requireConnectionsInOrganization(

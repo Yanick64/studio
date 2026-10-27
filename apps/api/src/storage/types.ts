@@ -1882,6 +1882,16 @@ export interface TaskBoardItemTable {
     string | null | undefined,
     string | null
   >;
+  webhook_context_revision: ColumnType<
+    string | null,
+    string | null | undefined,
+    string | null
+  >;
+  webhook_source_version: ColumnType<
+    string | null,
+    string | null | undefined,
+    string | null
+  >;
   /** Set when a reports-pushed finding's card is dismissed (its "delete") —
    *  the card leaves the board and the import skips its `external_key`, so the
    *  finding doesn't return on the next scan. Null for a live card. Cleared by
@@ -2138,7 +2148,30 @@ export interface TaskBoardItemThreadRef {
   createdAt: string;
 }
 
+export type AmpTaskPhase =
+  | "legacy"
+  | "summary"
+  | "planning"
+  | "implementation"
+  | "review";
+
 export interface TaskBoardItem {
+  ampRun?: {
+    runId: string;
+    phase: AmpTaskPhase;
+    summary: string | null;
+    review: string | null;
+    state:
+      | "queued"
+      | "starting"
+      | "running"
+      | "unknown"
+      | "completed"
+      | "failed";
+    plan: string | null;
+    planRunId: string | null;
+    approvedBy: string | null;
+  };
   harnessId: TaskBoardHarnessId;
   /** The epic or card this one sits under; null at the top level. */
   parentId: string | null;
@@ -2602,6 +2635,43 @@ export interface Database {
   };
   repositories: RepositoryTable;
   task_board_items: TaskBoardItemTable;
+  task_board_amp_runs: {
+    phase: ColumnType<AmpTaskPhase, AmpTaskPhase | undefined>;
+    summary_text: string | null;
+    summary_context_hash: string | null;
+    review_text: string | null;
+    review_key: string | null;
+    review_targets: ColumnType<
+      { url: string; headSha: string }[],
+      string | undefined,
+      string
+    >;
+    context_hash: string | null;
+    plan_text: string | null;
+    plan_run_id: string | null;
+    approved_by: string | null;
+    approved_at: ColumnType<
+      Date | null,
+      string | null | undefined,
+      string | null
+    >;
+    task_id: string;
+    organization_id: string;
+    run_id: string;
+    thread_id: string | null;
+    state:
+      | "queued"
+      | "starting"
+      | "running"
+      | "unknown"
+      | "completed"
+      | "failed";
+    prompt: string;
+    repositories: ColumnType<string[], string, string>;
+    requested_by: string;
+    comment_id: string | null;
+    updated_at: ColumnType<Date, string | undefined, string>;
+  };
   task_board_sprints: TaskBoardSprintTable;
   task_board_prompts: TaskBoardPromptTable;
   task_board_item_threads: TaskBoardItemThreadTable;

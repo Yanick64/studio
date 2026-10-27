@@ -7,6 +7,10 @@
 
 import { z } from "zod";
 import { UrlSlugSchema } from "../../url-slug";
+import {
+  EmailRoutingRulesSchema,
+  SentryProjectsSchema,
+} from "../../ticket-routing";
 
 /**
  * Virtual MCP connection schema - defines which connection and tools/resources/prompts are included
@@ -868,6 +872,34 @@ const VirtualMcpMetadataFields = {
   repository: RepositoryBindingSchema.nullable()
     .optional()
     .describe("Linked repository"),
+  additionalRepositories: z
+    .array(RepositoryBindingSchema)
+    .max(20)
+    .nullable()
+    .optional()
+    .describe("Other repositories belonging to this project"),
+  orbitClientIds: z
+    .array(z.string().trim().min(1).max(200))
+    .max(100)
+    .refine(
+      (ids) => new Set(ids).size === ids.length,
+      "Duplicate Orbit client ID",
+    )
+    .nullable()
+    .optional()
+    .describe(
+      "Route new Orbit tickets for these client IDs to this project. Empty disables routing.",
+    ),
+  emailRoutingRules: EmailRoutingRulesSchema.nullable()
+    .optional()
+    .describe(
+      "Route Gmail conversations by sender, To or Cc address. Each rule is an exact address or /RE2 regex/, case insensitive. Ambiguous matches stay in the inbox.",
+    ),
+  sentryProjects: SentryProjectsSchema.nullable()
+    .optional()
+    .describe(
+      "Route Sentry issues by organization-slug/project-slug. Ambiguous matches stay in the inbox.",
+    ),
   runtime: RuntimeMetadataSchema.nullable()
     .optional()
     .describe(

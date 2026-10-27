@@ -1,4 +1,9 @@
 import { resolveTaskRunModel } from "./task-run-harness";
+import {
+  enqueueAmpReview,
+  enqueueAmpSummary,
+  usesAmpPlanning,
+} from "./amp-task-run";
 import { LANES, TaskBoardHarnessSchema } from "@decocms/shared/task-board";
 import { z } from "zod";
 import { defineTool } from "@/core/define-tool";
@@ -18,7 +23,10 @@ import { inReviewPhase, LANE_RANK, laneRank } from "./lanes";
 import { assertValidAssignee } from "./validate-assignee";
 import { assertValidTagIds } from "./validate-tags";
 import { cardCheckout, resolveCardProject } from "./validate-project";
-import { reactToSuperAgentDelegation } from "@/automations/fire-implementer";
+import {
+  fireImplementer,
+  reactToSuperAgentDelegation,
+} from "@/automations/fire-implementer";
 import { recordTaskActivities } from "./activity";
 import { assertPlannableSprint, sprintChangeEntry } from "./sprints";
 import { isBoardRunThread, taskRunContextStore } from "./task-run-context";
@@ -361,7 +369,12 @@ export const TASK_BOARD_ITEM_UPDATE = defineTool({
       input.assigneeId !== (previous?.assigneeId ?? null);
     // Delegating puts the card in In Progress, where the Super Agent works.
     const becameSuperAgent = delegatesToSuperAgent(input.assigneeId, previous);
-    const queuedStatus = becameSuperAgent ? LANES.progress : undefined;
+    const ampPlanning = usesAmpPlanning(organizationId);
+    const queuedStatus = becameSuperAgent
+      ? ampPlanning
+        ? "todo"
+        : LANES.progress
+      : undefined;
     const nextStatus = queuedStatus ?? input.status;
 
     if (previous && isReportsTask(previous)) {
@@ -543,10 +556,31 @@ export const TASK_BOARD_ITEM_UPDATE = defineTool({
       );
       if (released) emitTaskBoardUpdated(organizationId, released);
     }
+    if (
+      ampPlanning &&
+      item.status === "todo" &&
+      previous?.status !== "todo" &&
+      !becameSuperAgent
+    ) {
+      await fireImplementer(ctx, item, { userInitiated: true });
+      return {
+        item:
+          (await ctx.storage.taskBoard.getById(item.id, organizationId)) ??
+          item,
+      };
+    }
     if (becameSuperAgent) {
       await reactToSuperAgentDelegation(ctx, item, { userInitiated: true });
-      return { item };
+      return {
+        item:
+          (await ctx.storage.taskBoard.getById(item.id, organizationId)) ??
+          item,
+      };
     }
+
+    if (item.status === "triage") await enqueueAmpSummary(ctx, item);
+    if (item.status === "in_review" && (previous?.status !== "in_review" || pr))
+      await enqueueAmpReview(ctx, item);
 
     // Trunk-based orgs merge as soon as a card is cleared for release. Only
     // on an actual lane change: re-saving a title must not re-trigger.

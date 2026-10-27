@@ -8,6 +8,7 @@ import { Panel } from "@/components/panel";
 
 import { useRef, useState } from "react";
 import { Spinner } from "@decocms/ui/components/spinner.tsx";
+import { AmpStatus } from "./amp-status";
 import type { CSSProperties, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -1788,6 +1789,12 @@ function TaskBoardBody() {
           item={openItem}
           onClose={() => closeTask()}
           isSaving={actions.update.isPending}
+          onStatusChange={(status) =>
+            actions.update.mutate(
+              { id: openItem.id, status },
+              { onError: onDelegateError },
+            )
+          }
           onSetSprint={(sprintId) =>
             actions.update.mutate(
               { id: openItem.id, sprintId },
@@ -1804,7 +1811,14 @@ function TaskBoardBody() {
                touches them. The editor locks those fields but still
                round-trips their values, so drop them here; board fields
                (status/assignee/dueDate/tagIds) always go through. */
-            const { title, description, priority, ...boardFields } = input;
+            // Status has its own mutation so autosave cannot undo a live QA handoff.
+            const {
+              title,
+              description,
+              priority,
+              status: _status,
+              ...boardFields
+            } = input;
             const contentFields = isReportsTask(openItem)
               ? {}
               : { title, description, priority };
@@ -3609,6 +3623,8 @@ function TaskCard({
         {runState && <AgentRunIndicator state={runState} />}
       </div>
 
+      <AmpStatus item={item} />
+
       {(item.tags.length > 0 || item.sprintId || inHierarchy) && (
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
           <EpicProgressPill item={item} />
@@ -4346,6 +4362,7 @@ function ListRow({
           {item.title}
         </button>
         {runState && <AgentRunIndicator state={runState} />}
+        <AmpStatus item={item} />
         {isTaskBlocked(item) && <BlockedBadge />}
         {isTaskHandedToHuman(item) && <HandedToHumanBadge />}
         {item.sprintId && (

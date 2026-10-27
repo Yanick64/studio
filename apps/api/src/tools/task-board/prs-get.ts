@@ -480,6 +480,7 @@ async function readChangeRequest(
   orgId: string,
   pr: TaskBoardItemPrRef,
   label: string,
+  fresh = false,
 ): Promise<ChangeRequest | null> {
   const client = await clientFor(ctx, orgId, pr);
   if (!client) return null;
@@ -488,7 +489,21 @@ async function readChangeRequest(
     `read:${pr.number}`,
     `${prLabel(pr)} (${label})`,
     () => client.read(pr.number),
+    fresh,
   );
+}
+
+/** The exact revision an external reviewer is asked to test, using the shared read cache. */
+export async function fetchPrReviewState(
+  ctx: StudioContext,
+  orgId: string,
+  pr: TaskBoardItemPrRef,
+  fresh = false,
+) {
+  const cr = await readChangeRequest(ctx, orgId, pr, "amp-review", fresh);
+  if (!cr)
+    throw new Error("Could not read a linked PR. Check repository access.");
+  return { ...cardLifecycle(cr.state), headSha: cr.headSha };
 }
 
 /** Just the checks summary — used to gate the merge (don't ship on red or

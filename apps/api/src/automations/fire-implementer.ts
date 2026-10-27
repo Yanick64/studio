@@ -12,6 +12,8 @@
  */
 
 import { randomUUID } from "node:crypto";
+import { enqueueAmpTask, usesAmpTasks } from "@/tools/task-board/amp-task-run";
+import { emitTaskBoardUpdated } from "@/tools/task-board/run-reactions";
 import { DBOS } from "@dbos-inc/dbos-sdk";
 import { SUPER_AGENT_ASSIGNEE_ID } from "@decocms/shared/task-board";
 import { TaskQuotaError } from "@/billing/task-quota";
@@ -53,6 +55,26 @@ export async function fireImplementer(
   item: TaskBoardItem,
   run: ManualRun = {},
 ): Promise<void> {
+  if (usesAmpTasks(item.organizationId)) {
+    try {
+      await enqueueAmpTask(ctx, item, run);
+    } catch (error) {
+      await ctx.storage.taskBoard.recordAmpDispatchFailure(
+        item.id,
+        item.organizationId,
+        error instanceof Error
+          ? error.message
+          : "Check the executor configuration.",
+      );
+      const current = await ctx.storage.taskBoard.getById(
+        item.id,
+        item.organizationId,
+      );
+      if (current) emitTaskBoardUpdated(item.organizationId, current);
+      throw error;
+    }
+    return;
+  }
   const { automationId, triggerId } = await implementerOf(ctx, item);
   const eventKey = `manual:${randomUUID()}`;
   const fire: FireAutomationContext = {
@@ -94,6 +116,7 @@ export async function reactToSuperAgentDelegation(
 ): Promise<void> {
   if (item.assigneeId !== SUPER_AGENT_ASSIGNEE_ID) return;
   await fireImplementer(ctx, item, opts).catch((err) => {
+    if (usesAmpTasks(item.organizationId)) throw err;
     if (err instanceof TaskQuotaError) throw err;
     console.error("[task-board] Super Agent enqueue failed", err);
   });

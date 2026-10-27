@@ -6,6 +6,7 @@
 
 import { isProjectAllowed } from "@decocms/shared/auth/project-scope";
 import { z } from "zod";
+import { authorizeOrbitRouting } from "./authorize-orbit-routing";
 import { defineTool } from "../../core/define-tool";
 import { resolveCallerProjectScope } from "../../core/project-scope";
 import {
@@ -87,6 +88,16 @@ export const COLLECTION_VIRTUAL_MCP_UPDATE = defineTool({
     // `prompts` lives in org-fs, not on the agent row — pull it out before the
     // row update and re-seed separately below.
     const { prompts, metadata: rawMetadata, ...updateData } = input.data;
+    if (
+      (["orbitClientIds", "emailRoutingRules", "sentryProjects"] as const).some(
+        (field) =>
+          (rawMetadata === null || rawMetadata?.[field] !== undefined) &&
+          JSON.stringify(rawMetadata?.[field] ?? []) !==
+            JSON.stringify(existing.metadata?.[field] ?? []),
+      )
+    ) {
+      await authorizeOrbitRouting(ctx);
+    }
     // The site slug is set once, by the create/import flow; never changed here.
     assertSiteSlugUnchanged(existing, rawMetadata);
     let metadata = stripServerManagedMetadata(rawMetadata);

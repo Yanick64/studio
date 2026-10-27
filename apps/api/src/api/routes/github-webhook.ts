@@ -16,11 +16,16 @@
 
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
+import { z } from "zod";
 import { bodyLimit } from "hono/body-limit";
 import { getOrInitSharedRunner } from "@/sandbox/lifecycle";
 import type { StudioContextFactory } from "@/automations/fire";
 import type { TaskBoardStorage } from "@/storage/task-board";
 import { refreshItemPrCards } from "@/tools/task-board/prs-get";
+import {
+  enqueueAmpReview,
+  usesAmpReview,
+} from "@/tools/task-board/amp-task-run";
 
 // A push event with a large commit list is still small; the route is
 // unauthenticated, so cap the body before buffering it.
@@ -29,7 +34,25 @@ const MAX_BODY_SIZE = 5_242_880; // 5MB
 /** Events that can change a PR card. `check_suite` covers third-party checks
  *  (Cloudflare Pages / Workers Builds) as well as Actions; `issue_comment`
  *  carries the deploy bots that publish the preview url as a comment. */
-const PR_CARD_EVENTS = new Set(["check_suite", "issue_comment"]);
+const PR_CARD_EVENTS = new Set([
+  "check_suite",
+  "issue_comment",
+  "pull_request",
+]);
+const PullRequestEventSchema = z.object({
+  action: z.enum([
+    "opened",
+    "synchronize",
+    "reopened",
+    "ready_for_review",
+    "closed",
+  ]),
+  number: z.number().int().positive().safe(),
+  repository: z.object({
+    name: z.string().min(1),
+    owner: z.object({ login: z.string().min(1) }),
+  }),
+});
 
 export function verifyGithubSignature(
   rawBody: string,
@@ -70,6 +93,17 @@ export function prRefsFromGithubEvent(
   event: string,
   payload: unknown,
 ): GithubPrEventRef[] {
+  if (event === "pull_request") {
+    const parsed = PullRequestEventSchema.safeParse(payload);
+    if (!parsed.success) return [];
+    return [
+      {
+        repoOwner: parsed.data.repository.owner.login,
+        repoName: parsed.data.repository.name,
+        number: parsed.data.number,
+      },
+    ];
+  }
   const body = payload as {
     action?: unknown;
     repository?: { name?: unknown; owner?: { login?: unknown } };
@@ -229,6 +263,9 @@ async function refreshPrCardsForRefs(
           link.taskBoardItemId,
         );
         if (cards !== null) refreshed++;
+        if (item && usesAmpReview(item.organizationId)) {
+          await enqueueAmpReview(ctx, item, { fresh: true });
+        }
       } catch (err) {
         console.error(
           `[github-webhook] pr card refresh failed for ${link.taskBoardItemId}:`,

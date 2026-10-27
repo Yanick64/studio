@@ -5,6 +5,7 @@ describe("DBOS queue names", () => {
   test("exports all run queues from the side-effect-free queue module", () => {
     expect(queueNames).toMatchObject({
       AUTOMATIONS_QUEUE: "automations",
+      AMP_TASKS_QUEUE: "task-board-amp",
       THREAD_GATE_QUEUE: "thread-gate",
       HOSTED_HARNESS_QUEUE: "decopilot-hosted-harness",
       HOSTED_HARNESS_SANDBOXED_QUEUE: "decopilot-hosted-harness-sandboxed",

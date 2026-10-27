@@ -13,7 +13,7 @@
  * metadata.organization and metadata.trigger_id are cross-checked against
  * the URL slug and trigger id so a leaked key can't fire arbitrarily.
  *
- * Body: arbitrary JSON. Forwarded to the automation as a system message
+ * Body: JSON or URL-encoded form fields. Forwarded to the automation
  * (treated as untrusted input). Empty bodies are allowed.
  */
 
@@ -24,6 +24,25 @@ import { auth } from "@/auth";
 import { type ContextMessage, enqueueAutomationFire } from "@/automations";
 import type { StudioContext } from "@/core/studio-context";
 import { webhookPermissionResource } from "@/tools/automations/webhook-trigger";
+import { parseWebhookPayload } from "@/tools/automations/webhook-payload";
+import {
+  OrbitIntakeParamsSchema,
+  OrbitTicketSchema,
+  orbitTicketDraft,
+  orbitProjectForClient,
+} from "@/tools/automations/orbit-ticket";
+import { emitTaskBoardUpdated } from "@/tools/task-board/run-reactions";
+import {
+  enqueueAmpSummary,
+  usesAmpSummary,
+} from "@/tools/task-board/amp-task-run";
+import type { TaskBoardItem } from "@/storage/types";
+import { createAutomationContextFactory } from "./decopilot/automation-context";
+import { fetchOrbitTicketContext } from "@/tools/automations/orbit-enrichment";
+import {
+  ORBIT_CONTEXT_SEPARATOR,
+  orbitDescriptionWithContext,
+} from "@/tools/automations/orbit-context";
 import type { Env } from "../hono-env";
 
 const MAX_BODY_SIZE = 1_048_576; // 1MB
@@ -199,13 +218,117 @@ export function createAutomationWebhookRoutes() {
       return c.json({ ok: false, reason: "automation_inactive" }, 200);
     }
 
-    // Body is optional; non-JSON bodies are treated as no payload (the
-    // automation still fires).
-    let payload: unknown = null;
-    try {
-      payload = await c.req.json();
-    } catch {
-      payload = null;
+    const payload = parseWebhookPayload(
+      await c.req.text(),
+      c.req.header("content-type"),
+    );
+
+    const intake = OrbitIntakeParamsSchema.safeParse(
+      trigger.params ? JSON.parse(trigger.params) : null,
+    );
+    if (intake.success) {
+      const ticket = OrbitTicketSchema.safeParse(payload);
+      if (!ticket.success) {
+        return c.json({ error: "Invalid Orbit ticket payload" }, 400);
+      }
+      const inbox = await ctx.storage.virtualMcps.findById(
+        automation.virtual_mcp_id,
+        ctx.organization.id,
+      );
+      if (!inbox || inbox.organization_id !== ctx.organization.id) {
+        return c.json({ error: "Intake project not found" }, 404);
+      }
+      const project =
+        orbitProjectForClient(
+          await ctx.storage.virtualMcps.list(ctx.organization.id),
+          ticket.data["CLIENT.ID"],
+        ) ?? inbox;
+      const contextRevision = intake.data.orbitConnectionId
+        ? crypto.randomUUID()
+        : undefined;
+      const { item, outcome } = await ctx.storage.taskBoard.upsertWebhookTicket(
+        {
+          organizationId: ctx.organization.id,
+          externalKey: `orbit:${trigger.id}:${ticket.data["TICKET.ID"]}`,
+          ...orbitTicketDraft(ticket.data),
+          virtualMcpId: project.id,
+          by: automation.created_by,
+          contextRevision,
+          contextSeparator: ORBIT_CONTEXT_SEPARATOR,
+        },
+      );
+      if (outcome !== "unchanged")
+        emitTaskBoardUpdated(ctx.organization.id, item);
+      const summarize = async (task: TaskBoardItem) => {
+        if (!usesAmpSummary(task.organizationId) || task.status !== "triage")
+          return;
+        try {
+          const ownerCtx = await createAutomationContextFactory({ db: ctx.db })(
+            task.organizationId,
+            automation.created_by,
+          );
+          if (ownerCtx) await enqueueAmpSummary(ownerCtx, task);
+        } catch {
+          console.warn(
+            "[orbit-intake] Summary dispatch failed; ticket retained",
+          );
+        }
+      };
+      if (intake.data.orbitConnectionId && contextRevision) {
+        let context: string | null = null;
+        try {
+          const ownerCtx = await createAutomationContextFactory({ db: ctx.db })(
+            ctx.organization.id,
+            automation.created_by,
+          );
+          if (!ownerCtx) throw new Error("Intake owner is no longer a member");
+          context = await fetchOrbitTicketContext(
+            ownerCtx,
+            intake.data.orbitConnectionId,
+            ticket.data,
+          );
+        } catch {
+          console.warn(
+            "[orbit-intake] Context refresh failed; ticket retained",
+          );
+        }
+        const description = orbitDescriptionWithContext(
+          item.description ?? "",
+          context,
+        );
+        const enriched =
+          await ctx.storage.taskBoard.completeWebhookTicketContext({
+            id: item.id,
+            organizationId: ctx.organization.id,
+            revision: contextRevision,
+            expectedDescription: item.description ?? "",
+            description,
+            by: automation.created_by,
+          });
+        if (enriched && description !== item.description)
+          emitTaskBoardUpdated(ctx.organization.id, enriched);
+        if (enriched) await summarize(enriched);
+        return c.json(
+          {
+            ok: true,
+            task_id: item.id,
+            outcome:
+              outcome === "unchanged" &&
+              enriched &&
+              description !== item.description
+                ? "updated"
+                : outcome,
+            context: !enriched
+              ? "superseded"
+              : context === null
+                ? "unavailable"
+                : "updated",
+          },
+          200,
+        );
+      }
+      await summarize(item);
+      return c.json({ ok: true, task_id: item.id, outcome }, 200);
     }
 
     // `run_metadata` is TRUSTED run context forwarded to downstream tools via the

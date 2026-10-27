@@ -24,6 +24,7 @@ import { defineTool } from "@/core/define-tool";
 import { requireAuth } from "@/core/studio-context";
 import { REVIEWER_KINDS } from "@decocms/shared/task-board";
 import { authorRunLive, enqueueEnabledReviewers } from "./enqueue-reviewer";
+import { enqueueAmpReview, usesAmpReview } from "./amp-task-run";
 
 export const TASK_BOARD_RUN_REVIEWER = defineTool({
   name: "TASK_BOARD_RUN_REVIEWER",
@@ -65,6 +66,9 @@ export const TASK_BOARD_RUN_REVIEWER = defineTool({
 
     const item = await ctx.storage.taskBoard.getById(id, organizationId);
     if (!item) throw new Error(`Task board item not found: ${id}`);
+    if (usesAmpReview(organizationId)) {
+      return { queued: await enqueueAmpReview(ctx, item, { force: true }) };
+    }
 
     // A review is a verdict on a pull request; with none linked the run is spent discovering that.
     const prs = await ctx.storage.taskBoard.listPrs(id, organizationId);

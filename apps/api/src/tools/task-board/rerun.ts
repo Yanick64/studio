@@ -46,6 +46,12 @@ import {
 import { TERMINAL_THREAD_STATUSES } from "@/storage/task-board";
 import type { TaskBoardItem } from "@/storage/types";
 import { inReviewPhase } from "./lanes";
+import {
+  enqueueAmpTask,
+  enqueueAmpSummary,
+  usesAmpSummary,
+  usesAmpTasks,
+} from "./amp-task-run";
 import { broadcastRunCancel } from "@/api/routes/decopilot/cancel-registry";
 import { cancelHostedHarness } from "@/dispatch-queue";
 import { cancelThreadGateHead } from "@/dispatch-queue/thread-gate-queue";
@@ -365,6 +371,10 @@ export const TASK_BOARD_ITEM_RERUN = defineTool({
 
     const item = await ctx.storage.taskBoard.getById(id, organizationId);
     if (!item) throw new Error(`Task board item not found: ${id}`);
+    if (item.status === "triage" && usesAmpSummary(organizationId)) {
+      await enqueueAmpSummary(ctx, item, true);
+      return { status: "triage", supersededThreadIds: [] };
+    }
 
     // A re-run is a Super Agent run, so the task must be the Super Agent's.
     // Re-assigning a human's task away from them as a side effect of "retry"
@@ -381,6 +391,11 @@ export const TASK_BOARD_ITEM_RERUN = defineTool({
 
     // Paywall before any write: a refused re-run must leave the card untouched.
     await ensureTaskExecutionAllowed(ctx, item, userInitiatedTaskQuotaConfig());
+
+    if (usesAmpTasks(organizationId)) {
+      await enqueueAmpTask(ctx, item, { userInitiated: true });
+      return { status: "todo", supersededThreadIds: [] };
+    }
 
     const supersededThreadIds = await supersedeLiveRuns(ctx, item);
 

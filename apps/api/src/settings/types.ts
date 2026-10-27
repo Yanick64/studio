@@ -44,6 +44,17 @@ export interface Settings {
   encryptionKey: string;
   studioJwtSecret: string | undefined;
   localMode: boolean;
+  /** Opt in to the server's gh login without enabling local auto-login. */
+  githubCliEnabled: boolean;
+  /** Dedicated Amp account, restricted to one organization on this deployment. */
+  ampTasksEnabled: boolean;
+  ampTaskPlanningEnabled: boolean;
+  ampTaskReviewEnabled: boolean;
+  ampTaskSummaryEnabled: boolean;
+  ampSummaryProject?: string;
+  ampTaskOrganizationId?: string;
+  ampApiKey?: string;
+  ampCliPath: string;
   disableRateLimit: boolean;
   /** Admit `http://localhost:<port>` as a Jira site — a stand-in Jira for
    *  local development and e2e. See `normalizeSiteUrl`. */

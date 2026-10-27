@@ -1,6 +1,19 @@
 import type { virtualMcp as virtualMcpEn } from "../en/virtual-mcp.ts";
 
 export const virtualMcp = {
+  "virtualMcp.orbit.title": "Roteamento de tickets do Orbit",
+  "virtualMcp.orbit.description":
+    "Associe novos tickets a este projeto pelo ID do cliente no Orbit. Clientes desconhecidos ou ambíguos ficam na caixa de entrada. Tickets existentes mantêm seu projeto.",
+  "virtualMcp.orbit.clients": "IDs de clientes do Orbit",
+  "virtualMcp.orbit.clientsHelp":
+    "Um CLIENT.ID por linha, até 100. Limpe a lista para desativar o roteamento automático para este projeto.",
+  "virtualMcp.orbit.repositories": "Repositórios do projeto",
+  "virtualMcp.orbit.repositoriesHelp":
+    "Uma URL por linha, até 21. O primeiro é o repositório principal. Repositórios privados também precisam de uma conta Git conectada.",
+  "virtualMcp.orbit.save": "Salvar roteamento e repositórios",
+  "virtualMcp.orbit.saved": "Salvo. O mapeamento se aplica a novos tickets.",
+  "virtualMcp.orbit.error":
+    "Não foi possível salvar. Verifique os IDs, as URLs, entradas duplicadas e suas permissões.",
   "virtualMcp.addConnectionDialog.addConnectionTitle": "Adicionar Conexão",
   "virtualMcp.addConnectionDialog.authenticationFailedError":
     "Autenticação falhou: {error}",

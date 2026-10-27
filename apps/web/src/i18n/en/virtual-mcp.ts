@@ -1,4 +1,17 @@
 export const virtualMcp = {
+  "virtualMcp.orbit.title": "Orbit ticket routing",
+  "virtualMcp.orbit.description":
+    "Match incoming tickets to this project by Orbit client ID. Unknown or ambiguous clients stay in the inbox. Existing tickets keep their project.",
+  "virtualMcp.orbit.clients": "Orbit client IDs",
+  "virtualMcp.orbit.clientsHelp":
+    "One CLIENT.ID per line, up to 100. Clear the list to stop automatic routing to this project.",
+  "virtualMcp.orbit.repositories": "Project repositories",
+  "virtualMcp.orbit.repositoriesHelp":
+    "One repository URL per line, up to 21. The first is the primary repository. Private repositories also need a connected Git account.",
+  "virtualMcp.orbit.save": "Save routing and repositories",
+  "virtualMcp.orbit.saved": "Saved. The mapping applies to new tickets.",
+  "virtualMcp.orbit.error":
+    "Could not save. Check the IDs, repository URLs, duplicate entries and your permissions.",
   "virtualMcp.addConnectionDialog.addConnectionTitle": "Add Connection",
   "virtualMcp.addConnectionDialog.authenticationFailedError":
     "Authentication failed: {error}",

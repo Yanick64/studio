@@ -11,6 +11,7 @@ import { retry, sleep } from "@decocms/shared/std";
 // the workflow modules, which register workflows at import time).
 import {
   AUTOMATIONS_QUEUE,
+  AMP_TASKS_QUEUE,
   BACKGROUND_TOOLS_QUEUE,
   BOARD_TRANSITIONS_QUEUE,
   GITHUB_READS_QUEUE,
@@ -74,6 +75,7 @@ function withSslmode(url: string, ssl: boolean): string {
 // still fire a cron that a "worker" pod then executes. REQUIREMENT: at least
 // one "worker" (or "all") pod must exist or runs never dispatch.
 const RUN_QUEUES = [
+  AMP_TASKS_QUEUE,
   AUTOMATIONS_QUEUE,
   THREAD_GATE_QUEUE,
   HOSTED_HARNESS_QUEUE,

@@ -1,6 +1,88 @@
 import type { taskBoard as taskBoardEn } from "../en/task-board.ts";
 
 export const taskBoard = {
+  "taskBoard.nextAction.label": "Próxima ação",
+  "taskBoard.nextAction.waitDescription":
+    "Seu próximo passo aparecerá aqui quando o Amp terminar.",
+  "taskBoard.nextAction.failedTitle": "Verifique por que o Amp parou",
+  "taskBoard.nextAction.failedDescription":
+    "Leia o problema relatado, resolva a falta de informações ou acesso e tente novamente.",
+  "taskBoard.nextAction.viewDetails": "Ver detalhes",
+  "taskBoard.nextAction.planTitle": "Revise e aprove o plano de implementação",
+  "taskBoard.nextAction.planDescription":
+    "Leia as alterações propostas e o plano de testes. Escolha Aprovar e implementar na aba do plano quando esta versão estiver pronta. Se precisar de alterações, atualize o ticket e gere um novo plano primeiro.",
+  "taskBoard.nextAction.viewPlan": "Revisar plano",
+  "taskBoard.nextAction.customerTitle": "Confira e envie a mensagem ao cliente",
+  "taskBoard.nextAction.customerDescription":
+    "Revise a mensagem e envie ao cliente por e-mail ou pelo Orbit. Adicione a resposta à conversa antes de continuar. O Studio não envia a mensagem por você.",
+  "taskBoard.nextAction.viewMessage": "Ver mensagem ao cliente",
+  "taskBoard.nextAction.copyMessage": "Copiar mensagem ao cliente",
+  "taskBoard.nextAction.copied": "Copiado",
+  "taskBoard.nextAction.copyFailed":
+    "Não foi possível copiar a mensagem ao cliente.",
+  "taskBoard.nextAction.customerResponseTitle":
+    "Acompanhe a resposta do cliente",
+  "taskBoard.nextAction.customerResponseDescription":
+    "Registre a resposta ou aprovação do cliente na conversa e escolha o próximo status do ticket.",
+  "taskBoard.nextAction.openConversation": "Abrir conversa",
+  "taskBoard.nextAction.summaryTitle":
+    "Revise o resumo e escolha o próximo passo",
+  "taskBoard.nextAction.summaryDescription":
+    "Confira as descobertas e perguntas pendentes. Se o escopo estiver claro e exigir implementação, mova o ticket para A fazer para gerar um plano.",
+  "taskBoard.nextAction.viewSummary": "Revisar resumo",
+  "taskBoard.nextAction.reviewTitle":
+    "Avalie a revisão e os resultados dos testes",
+  "taskBoard.nextAction.reviewDescription":
+    "Confira os problemas, testes com falha ou bloqueados e capturas de tela. Decida se são necessárias alterações ou se o ticket pode ir para QA.",
+  "taskBoard.nextAction.viewReview": "Ver resultados da revisão",
+  "taskBoard.nextAction.outcomeTitle": "Confira o resultado da execução",
+  "taskBoard.nextAction.outcomeDescription":
+    "Leia o resultado do Amp na conversa. Confira o que foi concluído e os bloqueios antes de testar ou enviar o resultado ao cliente.",
+  "taskBoard.nextAction.viewOutcome": "Ver resultado",
+  "taskBoard.taskDialog.contentTabs": "Conteúdo do ticket",
+  "taskBoard.taskDialog.originalTab": "Mensagem original",
+  "taskBoard.taskDialog.reviewTab": "Revisão",
+  "taskBoard.ampSummary.empty":
+    "Ainda não há resumo. O Amp resume tickets no Backlog atribuídos a um projeto ativo fora da caixa de entrada do Orbit.",
+  "taskBoard.ampPlan.empty":
+    "Ainda não há plano de implementação. Mova o ticket para A fazer para solicitar um plano. A implementação começa após sua aprovação.",
+  "taskBoard.ampReview.empty":
+    "Ainda não há revisão. O Amp revisa os pull requests vinculados quando o ticket está Em revisão.",
+  "taskBoard.ampStatus.queued": "Amp na fila",
+  "taskBoard.ampStatus.starting": "O Amp está iniciando",
+  "taskBoard.ampStatus.reconnecting": "Reconectando ao Amp",
+  "taskBoard.ampStatus.summarizing": "O Amp está resumindo",
+  "taskBoard.ampStatus.planning": "O Amp está planejando",
+  "taskBoard.ampStatus.implementing": "O Amp está implementando",
+  "taskBoard.ampStatus.reviewing": "O Amp está revisando e testando",
+  "taskBoard.ampSummary.title": "Resumo do problema",
+  "taskBoard.ampSummary.running":
+    "O Amp está lendo o ticket e verificando o contexto do repositório quando necessário.",
+  "taskBoard.ampSummary.failed":
+    "Não foi possível concluir o resumo. Veja os detalhes na atividade.",
+  "taskBoard.ampSummary.refresh": "Atualizar resumo",
+  "taskBoard.ampReview.title": "Revisão do PR e resultados dos testes",
+  "taskBoard.ampReview.running":
+    "O Amp está revisando as alterações, executando o plano de testes e capturando evidências da interface.",
+  "taskBoard.ampReview.completed":
+    "Relatório de revisão pronto. Confira os problemas encontrados, testes e capturas de tela antes de decidir o próximo passo.",
+  "taskBoard.ampReview.failed":
+    "Não foi possível concluir a revisão. Veja os detalhes na atividade e tente novamente.",
+  "taskBoard.ampReview.retry": "Executar revisão novamente",
+  "taskBoard.ampPlan.title": "Plano de implementação",
+  "taskBoard.ampPlan.planning":
+    "O Amp está analisando os repositórios e preparando um plano. A tarefa permanece em A fazer.",
+  "taskBoard.ampPlan.awaitingApproval":
+    "Revise este plano antes da implementação. Se a tarefa mudou, gere um novo plano primeiro.",
+  "taskBoard.ampPlan.approve": "Aprovar e implementar",
+  "taskBoard.ampPlan.regenerate": "Gerar um novo plano",
+  "taskBoard.ampPlan.implementing": "Plano aprovado. O Amp está implementando.",
+  "taskBoard.ampPlan.completed":
+    "Implementação concluída. Veja os resultados e verificações na atividade.",
+  "taskBoard.ampPlan.failed":
+    "O Amp parou. Veja o motivo na atividade e gere um novo plano.",
+  "taskBoard.ampPlan.reconnecting":
+    "O Studio está reconectando à execução existente do Amp. Veja o link do Amp na atividade.",
   "taskBoard.feed.today": "Hoje",
   "taskBoard.feed.yesterday": "Ontem",
   "taskBoard.feed.eventBlocked": "Precisa de você",

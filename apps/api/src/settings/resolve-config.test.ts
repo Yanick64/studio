@@ -1,5 +1,44 @@
 import { describe, expect, it } from "bun:test";
 import { resolveConfig, resolveShutdownDrainMs } from "./resolve-config";
+
+describe("Amp task execution opt-in", () => {
+  it("requires an explicit deployment flag independently of credentials", () => {
+    const settings = resolveConfig({
+      AMP_API_KEY: "synthetic-token",
+      AMP_TASK_ORGANIZATION_ID: "org-example",
+    });
+    expect(settings.ampTasksEnabled).toBe(false);
+    expect(settings.ampTaskPlanningEnabled).toBe(false);
+    expect(settings.ampTaskReviewEnabled).toBe(false);
+    expect(settings.ampTaskSummaryEnabled).toBe(false);
+    expect(
+      resolveConfig({ DECOCMS_AMP_TASK_REVIEW: "true" }).ampTaskReviewEnabled,
+    ).toBe(true);
+    expect(
+      resolveConfig({ DECOCMS_AMP_TASK_SUMMARY: "true" }).ampTaskSummaryEnabled,
+    ).toBe(true);
+    expect(
+      resolveConfig({ DECOCMS_AMP_TASKS: "true" }).ampTaskPlanningEnabled,
+    ).toBe(false);
+    expect(
+      resolveConfig({ DECOCMS_AMP_TASK_PLANNING: "true" })
+        .ampTaskPlanningEnabled,
+    ).toBe(true);
+    expect(resolveConfig({ DECOCMS_AMP_TASKS: "true" }).ampTasksEnabled).toBe(
+      true,
+    );
+  });
+});
+
+describe("GitHub CLI opt-in", () => {
+  it("defaults off and does not enable local auto-login", () => {
+    expect(resolveConfig({}).githubCliEnabled).toBe(false);
+    const settings = resolveConfig({ DECOCMS_GITHUB_CLI: "true" });
+    expect(settings.githubCliEnabled).toBe(true);
+    expect(settings.localMode).toBe(false);
+  });
+});
+
 describe("resolveConfig agent sandbox availability", () => {
   it("defaults to disabled", () => {
     expect(resolveConfig({}).agentSandboxEnabled).toBe(false);

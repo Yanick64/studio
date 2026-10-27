@@ -37,6 +37,11 @@ import {
   ruleFromColumns,
 } from "../../jira/rule-from";
 import { AutomationTriggerTypeSchema } from "./trigger-schema";
+import { TicketIntakeParamsSchema } from "./ticket-intake";
+import { authorizeOrbitRouting } from "../virtual/authorize-orbit-routing";
+import { ORBIT_CONTEXT_TOOLS } from "./orbit-enrichment";
+import { ForbiddenError } from "../../core/access-control";
+import { resolveCardProject } from "../task-board/validate-project";
 
 // Cluster-wide floor on cron firing frequency. Tighter than the 60s floor
 // the old NATS dispatcher allowed: each fire writes ~4 DBOS workflow rows
@@ -74,7 +79,12 @@ export const AUTOMATION_TRIGGER_ADD = defineTool({
     cron_expression: z.string().optional(),
     connection_id: z.string().optional(),
     event_type: z.string().optional(),
-    params: z.record(z.string(), z.string()).optional(),
+    params: z
+      .record(z.string(), z.string())
+      .optional()
+      .describe(
+        "Event parameters. For a webhook, intake: teamleader-orbit imports tickets into the automation's project without running a model.",
+      ),
     column_key: BoardColumnKeySchema.optional().describe(
       "For board_column_transition: the board column a card enters.",
     ),
@@ -108,6 +118,48 @@ export const AUTOMATION_TRIGGER_ADD = defineTool({
     const organization = requireOrganization(ctx);
     await ctx.access.check();
 
+    if (input.type === "webhook" && input.params?.intake !== undefined) {
+      const intake = TicketIntakeParamsSchema.parse(input.params);
+      await authorizeOrbitRouting(ctx);
+      if (intake.intake === "sentry") {
+        const secret = await ctx.storage.secrets.findById(
+          intake.sentrySecretId,
+          organization.id,
+          ctx.auth.user!.id,
+        );
+        if (secret.scope !== "organization")
+          throw new Error("Sentry intake requires an organization secret");
+      }
+      if (intake.intake === "teamleader-orbit" && intake.orbitConnectionId) {
+        const connection = await ctx.storage.connections.findById(
+          intake.orbitConnectionId,
+          organization.id,
+        );
+        if (!connection || connection.status !== "active")
+          throw new Error("Orbit connection unavailable");
+        if (
+          !(await ctx.boundAuth.hasPermission(
+            { [connection.id]: ORBIT_CONTEXT_TOOLS },
+            { organizationId: organization.id, role: ctx.access.getRole() },
+          ))
+        )
+          throw new ForbiddenError(
+            "Orbit enrichment requires ticket read permissions",
+          );
+      }
+      // access.check caches its grant for this tool, so check the delegated
+      // writes separately before issuing a token that can perform them.
+      const canWriteTickets = await ctx.boundAuth.hasPermission(
+        { self: ["TASK_BOARD_ITEM_CREATE", "TASK_BOARD_ITEM_UPDATE"] },
+        { organizationId: organization.id, role: ctx.access.getRole() },
+      );
+      if (!canWriteTickets) {
+        throw new ForbiddenError(
+          "Ticket intake requires task create and update permissions",
+        );
+      }
+    }
+
     // Validate automation exists and belongs to org
     const automation = await ctx.storage.automations.findById(
       input.automation_id,
@@ -118,6 +170,10 @@ export const AUTOMATION_TRIGGER_ADD = defineTool({
     }
     if (automation.system_key) {
       throw new Error("A built-in automation's starters can't be changed.");
+    }
+
+    if (input.type === "webhook" && input.params?.intake !== undefined) {
+      await resolveCardProject(ctx, organization.id, automation.virtual_mcp_id);
     }
 
     const owner = builtinOwningStarter(input.type);

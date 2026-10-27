@@ -9,6 +9,11 @@
  */
 
 import { readFileSync } from "node:fs";
+import {
+  registerAmpTaskWorkflow,
+  recoverAmpTasks,
+} from "@/tools/task-board/amp-task-run";
+import { AMP_TASKS_QUEUE } from "@/dispatch-queue/queue-names";
 import { randomBytes } from "node:crypto";
 import { sleep } from "@decocms/shared/std";
 import { jetstreamManager } from "@nats-io/jetstream";
@@ -925,7 +930,7 @@ import {
   MANAGEMENT_TOOLS,
 } from "@decocms/shared/tools/registry-metadata";
 import { Env } from "./hono-env";
-import { devLogger } from "./utils/dev-logger";
+import { devLogger, logRequestPath } from "./utils/dev-logger";
 import { streamSSE } from "hono/streaming";
 import { ALL_ORGS, type SSEEvent, sseHub } from "../event-bus";
 import {
@@ -1333,7 +1338,7 @@ export async function createApp(options: CreateAppOptions = {}) {
       const clonedRes = c.res.clone();
       const body = await clonedRes.text();
       console.error(
-        `[5xx Response] ${c.req.method} ${c.req.path} - ${c.res.status}:`,
+        `[5xx Response] ${c.req.method} ${logRequestPath(c.req.path)} - ${c.res.status}:`,
         body,
       );
     }
@@ -1969,6 +1974,7 @@ export async function createApp(options: CreateAppOptions = {}) {
   registerNotificationDigestWorkflow();
   registerTaskBoardMergedTagSweepWorkflow();
   registerTaskBoardGithubReadWorkflow();
+  registerAmpTaskWorkflow(database.db);
   registerSandboxCredentialPushWorkflow();
 
   const automationRunner: StudioContext["automationRunner"] = async (
@@ -2498,6 +2504,11 @@ export async function createApp(options: CreateAppOptions = {}) {
     // enforced in the system DB, so it is a cap on ALL replicas together —
     // the one thing an in-process token bucket could never be.
     await DBOS.registerQueue(GITHUB_READS_QUEUE, GITHUB_READS_QUEUE_PARAMS);
+    await DBOS.registerQueue(AMP_TASKS_QUEUE, {
+      concurrency: 2,
+      priorityEnabled: true,
+    });
+    await recoverAmpTasks();
     await DBOS.registerQueue(BOARD_TRANSITIONS_QUEUE);
     await reconcileAutomationSchedules(automationsStorage);
 

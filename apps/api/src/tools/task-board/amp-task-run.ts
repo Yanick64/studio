@@ -394,6 +394,44 @@ async function ampTaskWorkflow(
 
 let workflow: typeof ampTaskWorkflow | undefined;
 let pipelineWorkflow: typeof ampTaskPipelineWorkflow | undefined;
+let intakeSummaryWorkflow: typeof prepareIntakeSummaryWorkflow | undefined;
+
+async function prepareIntakeSummaryWorkflow(
+  taskId: string,
+  organizationId: string,
+  requestedBy: string,
+) {
+  const run = await DBOS.runStep(
+    async () => {
+      if (!database) throw new Error("Amp runtime is not initialized");
+      if (!usesAmpSummary(organizationId)) return null;
+      const ctx = await createAutomationContextFactory({ db: database })(
+        organizationId,
+        requestedBy,
+      );
+      if (!ctx) return null;
+      const task = await ctx.storage.taskBoard.getById(taskId, organizationId);
+      if (!task || task.status !== "triage") return null;
+      return prepareAmpAuxiliary(ctx, task, "summary");
+    },
+    { name: "prepareIntakeSummary", retriesAllowed: true, maxAttempts: 3 },
+  );
+  if (run) await start(run);
+}
+
+/** Persist dispatch before acknowledging intake; remote project lookup happens later. */
+export async function requestIntakeSummary(
+  task: TaskBoardItem,
+  requestedBy: string,
+) {
+  if (!usesAmpSummary(task.organizationId) || task.status !== "triage") return;
+  if (!intakeSummaryWorkflow) throw new Error("Amp workflow is not registered");
+  await DBOS.startWorkflow(intakeSummaryWorkflow, {
+    workflowID: `amp-intake-summary:${task.organizationId}:${task.id}:${task.updatedAt}`,
+    queueName: AMP_TASKS_QUEUE,
+    enqueueOptions: { priority: 10 },
+  })(task.id, task.organizationId, requestedBy);
+}
 
 // A separate registered workflow preserves the step sequence of existing runs.
 async function ampTaskPipelineWorkflow(
@@ -442,6 +480,12 @@ export function registerAmpTaskWorkflow(db: Kysely<Database>): void {
   pipelineWorkflow ??= DBOS.registerWorkflow(ampTaskPipelineWorkflow, {
     name: "ampTaskPipelineWorkflow",
   });
+  intakeSummaryWorkflow ??= DBOS.registerWorkflow(
+    prepareIntakeSummaryWorkflow,
+    {
+      name: "ampIntakeSummaryWorkflow",
+    },
+  );
 }
 
 async function start(run: AmpRun) {
@@ -810,6 +854,9 @@ async function prepareAmpRun(
       : "",
     phase === "summary"
       ? "Customer-message output format: when a ready-to-send draft is present, use exactly one fenced code block with language customer-message instead of text. Put only the customer message inside that block, and make the block the final content in your response. Never use this language for examples, code or internal notes. Studio uses this complete draft to hand the ticket to a human in QA for checking and sending; it does not mean the requested change has been performed. If there is no customer draft, omit the block."
+      : "",
+    phase === "summary"
+      ? "This is an agency with multiple developers and mixed work, including explanations, research, configuration, defects and extensions. Choose the next action from the ticket's content and verified evidence, regardless of whether it came from Google Mail, Sentry, Orbit or manual intake. Include exactly one standalone HTML comment before any customer-message block: <!-- ticket-action: research -->, replacing research with clarify, configure, plan or reply when appropriate. Use research for an internal evidence or access gap, clarify only for information the client must supply, configure for an existing supported CMS/settings solution, plan for a verified code change with enough scope to plan, and reply for an explanation or research answer ready to send. Explain the concrete next step in the summary. A recommendation does not perform a change or authorize implementation. Preserve the assigned developer's ownership and distinguish internal research from questions that need a customer answer."
       : "",
     phase === "review"
       ? "In PR comments, describe the case generically. Omit customer and organization names, people, site URLs, and private ticket/project identifiers. Keep those details and screenshot attachments in the private Amp thread."

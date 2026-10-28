@@ -1112,6 +1112,7 @@ function TaskBoardItemEditor({
                 {item && (
                   <AmpNextAction
                     item={item}
+                    ownerName={assignee?.user?.name ?? undefined}
                     onOpenTab={(tab) => {
                       flush();
                       if (tab === "activity")

@@ -109,6 +109,16 @@ export function sentryTicket(
       })
       .parse(payload);
     const issue = data.data.issue;
+    const url = new URL(issue.web_url);
+    if (
+      !(
+        (url.hostname === `${organization}.sentry.io` &&
+          url.pathname === `/issues/${issue.id}/`) ||
+        (url.hostname === "sentry.io" &&
+          url.pathname === `/organizations/${organization}/issues/${issue.id}/`)
+      )
+    )
+      throw new Error("Sentry issue is outside the configured organization");
     return {
       id: issue.id,
       title: issue.title,

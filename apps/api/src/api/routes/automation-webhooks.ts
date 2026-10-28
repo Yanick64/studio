@@ -26,7 +26,6 @@ import type { StudioContext } from "@/core/studio-context";
 import { webhookPermissionResource } from "@/tools/automations/webhook-trigger";
 import { parseWebhookPayload } from "@/tools/automations/webhook-payload";
 import {
-  OrbitIntakeParamsSchema,
   OrbitTicketSchema,
   orbitTicketDraft,
   orbitProjectForClient,
@@ -34,8 +33,17 @@ import {
 import { emitTaskBoardUpdated } from "@/tools/task-board/run-reactions";
 import {
   enqueueAmpSummary,
+  requestIntakeSummary,
   usesAmpSummary,
 } from "@/tools/task-board/amp-task-run";
+import { ticketProject } from "@decocms/shared/ticket-routing";
+import {
+  TicketIntakeParamsSchema,
+  GmailTicketSchema,
+  sentryTicket,
+  sourceTicketDescription,
+  validSentrySignature,
+} from "@/tools/automations/ticket-intake";
 import type { TaskBoardItem } from "@/storage/types";
 import { createAutomationContextFactory } from "./decopilot/automation-context";
 import { fetchOrbitTicketContext } from "@/tools/automations/orbit-enrichment";
@@ -218,15 +226,127 @@ export function createAutomationWebhookRoutes() {
       return c.json({ ok: false, reason: "automation_inactive" }, 200);
     }
 
-    const payload = parseWebhookPayload(
-      await c.req.text(),
-      c.req.header("content-type"),
-    );
+    const rawBody = await c.req.text();
+    const payload = parseWebhookPayload(rawBody, c.req.header("content-type"));
 
-    const intake = OrbitIntakeParamsSchema.safeParse(
-      trigger.params ? JSON.parse(trigger.params) : null,
-    );
-    if (intake.success) {
+    let params: unknown;
+    try {
+      params = trigger.params ? JSON.parse(trigger.params) : null;
+    } catch {
+      return c.json({ error: "Invalid intake configuration" }, 400);
+    }
+    const intake = TicketIntakeParamsSchema.safeParse(params);
+    if (
+      !intake.success &&
+      params &&
+      typeof params === "object" &&
+      "intake" in params
+    ) {
+      return c.json({ error: "Invalid intake configuration" }, 400);
+    }
+    if (intake.success && intake.data.intake !== "teamleader-orbit") {
+      const config = intake.data;
+      let draft: {
+        externalKey: string;
+        title: string;
+        description: string;
+        sourceVersion?: string;
+        externalUrl?: string;
+      };
+      let route:
+        | { kind: "gmail"; addresses: string[] }
+        | { kind: "sentry"; project: string };
+      if (config.intake === "gmail") {
+        const parsed = GmailTicketSchema.safeParse(payload);
+        if (!parsed.success || parsed.data.mailbox !== config.mailbox) {
+          return c.json(
+            { error: "Invalid Google Mail conversation or mailbox" },
+            400,
+          );
+        }
+        const ticket = parsed.data;
+        draft = {
+          externalKey: `gmail:${trigger.id}:${ticket.mailbox}:${ticket.threadId.toLowerCase()}`,
+          title: ticket.subject || "Google Mail conversation",
+          description: sourceTicketDescription("Google Mail", ticket),
+          sourceVersion: ticket.historyId,
+          externalUrl: `https://mail.google.com/mail/u/?authuser=${encodeURIComponent(ticket.mailbox)}#all/${ticket.threadId}`,
+        };
+        route = {
+          kind: "gmail",
+          addresses: ticket.messages.flatMap((message) => [
+            message.from,
+            ...message.to,
+            ...message.cc,
+          ]),
+        };
+      } else {
+        let secret: Awaited<ReturnType<typeof ctx.storage.secrets.resolveById>>;
+        try {
+          secret = await ctx.storage.secrets.resolveById(
+            config.sentrySecretId,
+            ctx.organization.id,
+            automation.created_by,
+          );
+        } catch {
+          return c.json({ error: "Sentry signing secret unavailable" }, 503);
+        }
+        if (
+          secret.info.scope !== "organization" ||
+          !validSentrySignature(
+            rawBody,
+            c.req.header("sentry-hook-signature"),
+            secret.value,
+          )
+        ) {
+          return c.json({ error: "Invalid Sentry signature" }, 401);
+        }
+        try {
+          const ticket = sentryTicket(
+            payload,
+            c.req.header("sentry-hook-resource"),
+            config.sentryOrganization,
+          );
+          draft = {
+            externalKey: `sentry:${trigger.id}:${config.sentryOrganization}:${ticket.id}`,
+            title: ticket.title,
+            description: sourceTicketDescription("Sentry", ticket.context),
+            externalUrl: ticket.url,
+          };
+          route = { kind: "sentry", project: ticket.project };
+        } catch {
+          return c.json(
+            { error: "Invalid or unsupported Sentry payload" },
+            400,
+          );
+        }
+      }
+      const inbox = await ctx.storage.virtualMcps.findById(
+        automation.virtual_mcp_id,
+        ctx.organization.id,
+      );
+      if (!inbox || inbox.organization_id !== ctx.organization.id) {
+        return c.json({ error: "Intake project not found" }, 404);
+      }
+      const project =
+        ticketProject(
+          await ctx.storage.virtualMcps.list(ctx.organization.id),
+          route,
+        ) ?? inbox;
+      const { item, outcome } = await ctx.storage.taskBoard.upsertWebhookTicket(
+        {
+          ...draft,
+          organizationId: ctx.organization.id,
+          virtualMcpId: project.id,
+          by: automation.created_by,
+        },
+      );
+      if (outcome !== "unchanged")
+        emitTaskBoardUpdated(ctx.organization.id, item);
+      await requestIntakeSummary(item, automation.created_by);
+      return c.json({ ok: true, task_id: item.id, outcome }, 200);
+    }
+    if (intake.success && intake.data.intake === "teamleader-orbit") {
       const ticket = OrbitTicketSchema.safeParse(payload);
       if (!ticket.success) {
         return c.json({ error: "Invalid Orbit ticket payload" }, 400);

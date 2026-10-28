@@ -1,9 +1,22 @@
 import type { virtualMcp as virtualMcpEn } from "../en/virtual-mcp.ts";
 
 export const virtualMcp = {
-  "virtualMcp.orbit.title": "Roteamento de tickets do Orbit",
+  "virtualMcp.orbit.title": "Roteamento de tickets",
   "virtualMcp.orbit.description":
-    "Associe novos tickets a este projeto pelo ID do cliente no Orbit. Clientes desconhecidos ou ambíguos ficam na caixa de entrada. Tickets existentes mantêm seu projeto.",
+    "Encaminhe tickets do Google Mail, Sentry e Orbit para este projeto. Correspondências desconhecidas ou ambíguas ficam na caixa de entrada. Tickets existentes mantêm seu projeto. Configure as conexões de origem separadamente.",
+  "virtualMcp.routing.emails": "Endereços e regras regex do Google Mail",
+  "virtualMcp.routing.emailsHelp":
+    "Um endereço de email ou /regex/ por linha, até 50. Verifica remetente, destinatários e Cc sem diferenciar maiúsculas. Exemplo: /@example\\.com$/. Padrões regex incompatíveis são rejeitados.",
+  "virtualMcp.routing.testAddress": "Testar um endereço com estas regras",
+  "virtualMcp.routing.test": "Testar regras",
+  "virtualMcp.routing.match":
+    "Corresponde a este projeto. Se outro projeto também corresponder, o ticket fica na caixa de entrada.",
+  "virtualMcp.routing.noMatch": "Não corresponde às regras deste projeto.",
+  "virtualMcp.routing.invalid":
+    "Informe um endereço de email e regras válidos.",
+  "virtualMcp.routing.sentry": "Projetos do Sentry",
+  "virtualMcp.routing.sentryHelp":
+    "Um organization-slug/project-slug por linha, até 100. Exemplo: example/web.",
   "virtualMcp.orbit.clients": "IDs de clientes do Orbit",
   "virtualMcp.orbit.clientsHelp":
     "Um CLIENT.ID por linha, até 100. Limpe a lista para desativar o roteamento automático para este projeto.",
@@ -13,7 +26,7 @@ export const virtualMcp = {
   "virtualMcp.orbit.save": "Salvar roteamento e repositórios",
   "virtualMcp.orbit.saved": "Salvo. O mapeamento se aplica a novos tickets.",
   "virtualMcp.orbit.error":
-    "Não foi possível salvar. Verifique os IDs, as URLs, entradas duplicadas e suas permissões.",
+    "Não foi possível salvar. Verifique as regras de email, projetos do Sentry, IDs do Orbit, URLs, entradas duplicadas e suas permissões.",
   "virtualMcp.addConnectionDialog.addConnectionTitle": "Adicionar Conexão",
   "virtualMcp.addConnectionDialog.authenticationFailedError":
     "Autenticação falhou: {error}",

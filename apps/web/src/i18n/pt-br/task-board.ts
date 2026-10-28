@@ -2,6 +2,41 @@ import type { taskBoard as taskBoardEn } from "../en/task-board.ts";
 
 export const taskBoard = {
   "taskBoard.nextAction.label": "Próxima ação",
+  "taskBoard.nextAction.owner": "Atribuído a {name}",
+  "taskBoard.nextAction.clarifyTitle": "Esclareça a solicitação com o cliente",
+  "taskBoard.nextAction.clarifyDescription":
+    "Confira as perguntas pendentes no resumo. Prepare e revise a mensagem e registre a resposta do cliente na conversa antes de planejar o trabalho.",
+  "taskBoard.nextAction.configureTitle":
+    "Use o CMS ou a configuração existente",
+  "taskBoard.nextAction.configureDescription":
+    "Confira o campo ou ajuste verificado no resumo e confirme acesso e requisitos de publicação. Registre a mudança ou prepare instruções para o cliente e verifique o resultado.",
+  "taskBoard.nextAction.scopeCodeTitle":
+    "Leve a alteração de código verificada para planejamento",
+  "taskBoard.nextAction.scopeCodeDescription":
+    "Confira as evidências e confirme o escopo com o desenvolvedor responsável. Mova para Todo para gerar um plano. A implementação exige aprovação dessa versão exata.",
+  "taskBoard.nextAction.assignOwner":
+    "Atribua um colega como responsável pela próxima ação humana no controle de responsável.",
+  "taskBoard.nextAction.routeTitle": "Escolha o projeto do cliente",
+  "taskBoard.nextAction.routeDescription":
+    "Selecione o projeto ativo e o colega responsável nos detalhes. Tickets na caixa de entrada precisam de um projeto de destino antes de iniciar o Amp.",
+  "taskBoard.nextAction.researchTitle":
+    "Investigue a solicitação e escolha a solução",
+  "taskBoard.nextAction.researchDescription":
+    "Leia a conversa e verifique os campos do CMS, configurações e comportamento do repositório. Decida entre explicar uma solução, perguntar ao cliente, investigar mais ou planejar uma alteração de código. Registre as descobertas na conversa.",
+  "taskBoard.nextAction.preparePlanTitle": "Prepare o plano de implementação",
+  "taskBoard.nextAction.preparePlanDescription":
+    "Confirme o escopo, os requisitos e os testes na conversa. Mover para Todo solicita um plano do Amp quando habilitado. Revise o plano e aprove essa versão antes da implementação.",
+  "taskBoard.nextAction.testTitle":
+    "Teste o resultado e prepare a entrega ao cliente",
+  "taskBoard.nextAction.testDescription":
+    "Verifique os critérios de aceitação e registre resultados, capturas de tela e pendências na conversa. Prepare uma mensagem com resultados verificados. Mantenha como rascunho até um colega revisar e enviar.",
+  "taskBoard.nextAction.deployTitle": "Coordene a publicação",
+  "taskBoard.nextAction.deployDescription":
+    "O desenvolvedor responsável deve conferir aprovações, testes e etapas da publicação. Registre o resultado e avance para a validação após a publicação.",
+  "taskBoard.nextAction.validateTitle":
+    "Verifique o resultado publicado e informe o cliente",
+  "taskBoard.nextAction.validateDescription":
+    "Confira o comportamento publicado conforme a solicitação. Registre evidências e envie a mensagem revisada pelo canal original. Marque como concluído após terminar o trabalho e a entrega.",
   "taskBoard.nextAction.waitDescription":
     "Seu próximo passo aparecerá aqui quando o Amp terminar.",
   "taskBoard.nextAction.failedTitle": "Verifique por que o Amp parou",

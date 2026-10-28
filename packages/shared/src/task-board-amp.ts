@@ -1,3 +1,28 @@
+/** A triage recommendation guides people; it never grants implementation approval. */
+export function ampResolution(summary: string | null | undefined) {
+  if (!summary || summary.length > 10_000) return null;
+  const markers = [
+    ...summary.matchAll(
+      /^<!-- ticket-action: (research|clarify|configure|plan|reply) -->[ \t]*$/gm,
+    ),
+  ];
+  if (markers.length !== 1) return null;
+  switch (markers[0]?.[1]) {
+    case "research":
+      return "research";
+    case "clarify":
+      return "clarify";
+    case "configure":
+      return "configure";
+    case "plan":
+      return "plan";
+    case "reply":
+      return "reply";
+    default:
+      return null;
+  }
+}
+
 /** Customer drafts use a distinct fence; older summaries used a translated heading. */
 export function ampCustomerMessage(
   summary: string | null | undefined,

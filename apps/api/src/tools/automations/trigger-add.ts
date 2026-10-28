@@ -83,7 +83,7 @@ export const AUTOMATION_TRIGGER_ADD = defineTool({
       .record(z.string(), z.string())
       .optional()
       .describe(
-        "Event parameters. For a webhook, intake: teamleader-orbit imports tickets into the automation's project without running a model.",
+        "Event parameters. Webhook ticket intake: teamleader-orbit; gmail with mailbox; sentry with sentryOrganization and sentrySecretId. Matching projects receive tickets; unmatched or ambiguous tickets stay in the automation's inbox project.",
       ),
     column_key: BoardColumnKeySchema.optional().describe(
       "For board_column_transition: the board column a card enters.",

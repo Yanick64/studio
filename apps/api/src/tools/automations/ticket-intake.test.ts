@@ -121,6 +121,23 @@ test("Sentry issues and alerts share identity and strip unrelated event data", (
   );
   expect(issue.id).toBe(alert.id);
   expect(issue.project).toBe(alert.project);
+  expect(() =>
+    sentryTicket(
+      {
+        action: "created",
+        data: {
+          issue: {
+            id: "123",
+            title: "Failed request",
+            project: { slug: "web" },
+            web_url: "https://other.sentry.io/issues/123/",
+          },
+        },
+      },
+      "issue",
+      "example",
+    ),
+  ).toThrow();
   expect(JSON.stringify(issue.context)).not.toContain(
     "synthetic-private-value",
   );

@@ -1,5 +1,39 @@
 export const taskBoard = {
   "taskBoard.nextAction.label": "Next action",
+  "taskBoard.nextAction.owner": "Assigned to {name}",
+  "taskBoard.nextAction.clarifyTitle": "Clarify the request with the client",
+  "taskBoard.nextAction.clarifyDescription":
+    "Check the specific unanswered questions in the summary. Prepare and review a client message, then record their reply in Conversation before planning work.",
+  "taskBoard.nextAction.configureTitle": "Use the existing CMS or setting",
+  "taskBoard.nextAction.configureDescription":
+    "Check the verified field or setting in the summary and confirm access and publication requirements. Record the change or prepare instructions for the client, then verify the result.",
+  "taskBoard.nextAction.scopeCodeTitle":
+    "Move the verified code change to planning",
+  "taskBoard.nextAction.scopeCodeDescription":
+    "Review the evidence and confirm the scope with the responsible developer. Move to Todo to generate a plan. Implementation requires approval of that exact plan version.",
+  "taskBoard.nextAction.assignOwner":
+    "Assign a teammate to own the next human action using the assignee control.",
+  "taskBoard.nextAction.routeTitle": "Choose the customer project",
+  "taskBoard.nextAction.routeDescription":
+    "Select the active project and responsible teammate in the ticket details. Tickets in an intake inbox need a destination project before Amp can start.",
+  "taskBoard.nextAction.researchTitle":
+    "Research the request and choose a resolution",
+  "taskBoard.nextAction.researchDescription":
+    "Read the conversation and check existing CMS fields, settings and repository behavior. Decide whether to explain a solution, ask the client a question, research further, or plan a code change. Record findings in Conversation.",
+  "taskBoard.nextAction.preparePlanTitle": "Prepare the implementation plan",
+  "taskBoard.nextAction.preparePlanDescription":
+    "Confirm scope, requirements and test cases in Conversation. Moving to Todo requests an Amp plan when enabled. Review the plan and approve that exact version before implementation.",
+  "taskBoard.nextAction.testTitle":
+    "Test the result and prepare the client handoff",
+  "taskBoard.nextAction.testDescription":
+    "Check the acceptance criteria and record test results, screenshots and remaining issues in Conversation. Prepare a client message describing only verified results. Keep it as a draft until a teammate checks and sends it.",
+  "taskBoard.nextAction.deployTitle": "Coordinate deployment",
+  "taskBoard.nextAction.deployDescription":
+    "Have the responsible developer check approvals, test results and the release steps. Record the deployment outcome, then move to post-deploy validation.",
+  "taskBoard.nextAction.validateTitle":
+    "Verify the live result and message the client",
+  "taskBoard.nextAction.validateDescription":
+    "Check the deployed behavior against the request. Record evidence and send the reviewed client update through the original channel. Mark Done only after the work and handoff are complete.",
   "taskBoard.nextAction.waitDescription":
     "Your next step appears here when Amp finishes.",
   "taskBoard.nextAction.failedTitle": "Check why Amp stopped",
@@ -40,7 +74,7 @@ export const taskBoard = {
   "taskBoard.taskDialog.originalTab": "Original message",
   "taskBoard.taskDialog.reviewTab": "Review",
   "taskBoard.ampSummary.empty":
-    "No summary yet. Amp summarizes Backlog tickets assigned to an active project outside the Orbit inbox.",
+    "No summary yet. Amp summarizes Backlog tickets assigned to an active project outside an intake inbox.",
   "taskBoard.ampPlan.empty":
     "No implementation plan yet. Move the ticket to Todo to request a plan. Implementation starts after you approve it.",
   "taskBoard.ampReview.empty":

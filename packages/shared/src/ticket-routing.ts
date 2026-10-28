@@ -31,7 +31,9 @@ export const EmailRoutingRulesSchema = z
   .max(50)
   .refine(
     (rules) =>
-      new Set(rules.map((rule) => rule.toLowerCase())).size === rules.length,
+      new Set(
+        rules.map((rule) => (rule.startsWith("/") ? rule : rule.toLowerCase())),
+      ).size === rules.length,
     "Duplicate email routing rule",
   );
 

@@ -1,4 +1,5 @@
 import { useId, useState } from "react";
+import { z } from "zod";
 import {
   parseRepoUrl,
   repoWebUrl,
@@ -6,7 +7,12 @@ import {
   splitOwnerName,
 } from "@decocms/shared/git-providers";
 import type { RepositoryBinding } from "@decocms/shared/sdk/types";
+import {
+  EmailRoutingRulesSchema,
+  matchesEmailRules,
+} from "@decocms/shared/ticket-routing";
 import { Button } from "@decocms/ui/components/button.tsx";
+import { Input } from "@decocms/ui/components/input.tsx";
 import { Textarea } from "@decocms/ui/components/textarea.tsx";
 import {
   SettingsCard,
@@ -15,6 +21,12 @@ import {
 } from "@/components/settings/settings-section";
 import { useT } from "@/i18n/use-t";
 import { VirtualMcpFormSchema, type VirtualMcpFormReturn } from "../types";
+
+const lines = (value: string) =>
+  value
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
 
 export function OrbitRoutingSettings({
   form,
@@ -34,6 +46,16 @@ export function OrbitRoutingSettings({
       .flatMap((repo) => (repo ? [repo.url] : []))
       .join("\n"),
   );
+  const [emails, setEmails] = useState(() =>
+    (metadata?.emailRoutingRules ?? []).join("\n"),
+  );
+  const [sentryProjects, setSentryProjects] = useState(() =>
+    (metadata?.sentryProjects ?? []).join("\n"),
+  );
+  const [testAddress, setTestAddress] = useState("");
+  const [matchResult, setMatchResult] = useState<
+    "match" | "noMatch" | "invalid" | null
+  >(null);
   const [error, setError] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pending, setPending] = useState(false);
@@ -41,11 +63,6 @@ export function OrbitRoutingSettings({
   const save = async () => {
     setError(false);
     setSaved(false);
-    const lines = (value: string) =>
-      value
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean);
     const current = form.getValues();
     const existing = [
       current.metadata?.repository,
@@ -77,6 +94,8 @@ export function OrbitRoutingSettings({
       metadata: {
         ...current.metadata,
         orbitClientIds: lines(clients),
+        emailRoutingRules: lines(emails),
+        sentryProjects: lines(sentryProjects),
         repository: bindings[0] ?? null,
         additionalRepositories: bindings.slice(1),
       },
@@ -88,6 +107,14 @@ export function OrbitRoutingSettings({
     setPending(true);
     try {
       form.setValue("metadata.orbitClientIds", next.metadata.orbitClientIds, {
+        shouldDirty: true,
+      });
+      form.setValue(
+        "metadata.emailRoutingRules",
+        next.metadata.emailRoutingRules,
+        { shouldDirty: true },
+      );
+      form.setValue("metadata.sentryProjects", next.metadata.sentryProjects, {
         shouldDirty: true,
       });
       form.setValue("metadata.repository", next.metadata.repository, {
@@ -113,6 +140,80 @@ export function OrbitRoutingSettings({
       description={t("virtualMcp.orbit.description")}
     >
       <SettingsCard>
+        <SettingsCardRow>
+          <label htmlFor={`${id}-emails`} className="text-sm font-medium">
+            {t("virtualMcp.routing.emails")}
+          </label>
+          <Textarea
+            id={`${id}-emails`}
+            className="mt-2"
+            value={emails}
+            disabled={pending}
+            onChange={(event) => {
+              setEmails(event.target.value);
+              setSaved(false);
+              setMatchResult(null);
+            }}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("virtualMcp.routing.emailsHelp")}
+          </p>
+          <label htmlFor={`${id}-test-address`} className="mt-3 block text-sm">
+            {t("virtualMcp.routing.testAddress")}
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Input
+              id={`${id}-test-address`}
+              type="email"
+              className="min-w-0 flex-1"
+              value={testAddress}
+              onChange={(event) => {
+                setTestAddress(event.target.value);
+                setMatchResult(null);
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                const rules = EmailRoutingRulesSchema.safeParse(lines(emails));
+                setMatchResult(
+                  !rules.success ||
+                    !z.email().safeParse(testAddress.trim()).success
+                    ? "invalid"
+                    : matchesEmailRules(rules.data, [testAddress.trim()])
+                      ? "match"
+                      : "noMatch",
+                );
+              }}
+            >
+              {t("virtualMcp.routing.test")}
+            </Button>
+          </div>
+          {matchResult && (
+            <p role="status" className="mt-2 text-xs text-muted-foreground">
+              {t(`virtualMcp.routing.${matchResult}`)}
+            </p>
+          )}
+        </SettingsCardRow>
+        <SettingsCardRow>
+          <label htmlFor={`${id}-sentry`} className="text-sm font-medium">
+            {t("virtualMcp.routing.sentry")}
+          </label>
+          <Textarea
+            id={`${id}-sentry`}
+            className="mt-2"
+            value={sentryProjects}
+            disabled={pending}
+            onChange={(event) => {
+              setSentryProjects(event.target.value);
+              setSaved(false);
+            }}
+          />
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t("virtualMcp.routing.sentryHelp")}
+          </p>
+        </SettingsCardRow>
         <SettingsCardRow>
           <label htmlFor={`${id}-clients`} className="text-sm font-medium">
             {t("virtualMcp.orbit.clients")}

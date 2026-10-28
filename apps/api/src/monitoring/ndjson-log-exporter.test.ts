@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "bun:test";
-import { sleep } from "@decocms/shared/std";
+import { retry } from "@decocms/shared/std";
 import { NDJSONLogExporter } from "./ndjson-log-exporter";
 import { ExportResultCode } from "@opentelemetry/core";
 import { mkdtemp, rm, readFile } from "node:fs/promises";
@@ -193,13 +193,20 @@ describe("NDJSONLogExporter", () => {
       );
     });
 
-    // Wait for timer to fire
-    await sleep(150);
-
-    const files = await findNDJSONFiles(tmpDir);
-    expect(files.length).toBe(1);
-
-    await timerExporter.shutdown();
+    try {
+      // The timer starts an async write; elapsed time does not prove it finished.
+      await retry(
+        async () => {
+          const files = await findNDJSONFiles(tmpDir);
+          expect(files.length).toBe(1);
+          const content = await readFile(files[0]!, "utf-8");
+          expect(JSON.parse(content.trim()).tool_name).toBe("TIMER_TOOL");
+        },
+        { minTimeout: 25, maxTimeout: 100, maxAttempts: 20, jitter: 0 },
+      );
+    } finally {
+      await timerExporter.shutdown();
+    }
   });
 
   it("should restore buffer on write failure", async () => {
